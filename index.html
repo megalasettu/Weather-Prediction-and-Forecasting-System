@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Weather Prediction and Forecasting System</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+
+            background-image:
+                linear-gradient(
+                    rgba(15, 55, 90, 0.25),
+                    rgba(15, 55, 90, 0.25)
+                ),
+                url("weather-bg.png");
+
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+
+            padding: 30px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1150px;
+            margin: auto;
+            padding: 35px;
+
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: 28px;
+
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        /* TITLE */
+
+        h1 {
+            text-align: center;
+            margin: 0 0 10px;
+
+            color: #0b315c;
+            font-size: 34px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #58718a;
+            margin-bottom: 28px;
+            font-size: 15px;
+        }
+
+        /* SEARCH AREA */
+
+        .search-area {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+
+            max-width: 800px;
+            margin: auto;
+        }
+
+        #city {
+            flex: 1;
+
+            padding: 16px 18px;
+
+            border: 2px solid rgba(80, 140, 190, 0.35);
+            border-radius: 13px;
+
+            background: rgba(255, 255, 255, 0.9);
+
+            font-size: 16px;
+            color: #102a43;
+
+            outline: none;
+        }
+
+        #city:focus {
+            border-color: #5bbcff;
+
+            box-shadow:
+                0 0 0 4px rgba(91, 188, 255, 0.15);
+        }
+
+        /* BUTTONS */
+
+        button {
+            padding: 15px 20px;
+
+            border: none;
+            border-radius: 13px;
+
+            background: linear-gradient(
+                135deg,
+                #5bbcff,
+                #3498db
+            );
+
+            color: white;
+
+            font-size: 15px;
+            font-weight: bold;
+
+            cursor: pointer;
+
+            box-shadow:
+                0 7px 16px
+                rgba(52, 152, 219, 0.25);
+
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+
+            box-shadow:
+                0 10px 22px
+                rgba(52, 152, 219, 0.30);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* ACTION BUTTONS */
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+
+            margin: 22px 0 30px;
+
+            flex-wrap: wrap;
+        }
+
+        /* WEATHER RESULT */
+
+        #weatherResult {
+            margin-top: 20px;
+        }
+
+       /* ============================= */
+/* 10 DAYS FORECAST */
+/* ============================= */
+
+#forecast {
+    margin-top: 30px;
+
+    display: grid;
+
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+
+    gap: 18px;
+
+    width: 100%;
+}
+
+
+/* FORECAST TITLE */
+
+#forecast h2 {
+    grid-column: 1 / -1;
+
+    width: 100%;
+
+    margin: 0 0 20px;
+
+    color: #123;
+
+    text-align: left;
+
+    font-size: 26px;
+}
+
+
+/* FORECAST CARD */
+
+#forecast .forecast-card {
+    width: auto;
+
+    min-width: 0;
+
+    min-height: 285px;
+
+    padding: 18px 12px;
+
+    border-radius: 20px;
+
+    background: rgba(255, 255, 255, 0.92);
+
+    border: 1px solid rgba(255, 255, 255, 0.95);
+
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.12);
+
+    text-align: center;
+
+    transition: 0.3s;
+
+    color: #111827;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: flex-start;
+}
+
+
+#forecast .forecast-card:hover {
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 12px 25px rgba(0, 0, 0, 0.18);
+}
+
+
+/* DATE */
+
+.forecast-date {
+    font-size: 16px;
+
+    line-height: 1.35;
+
+    color: #102a43;
+
+    margin-bottom: 12px;
+
+    font-weight: bold;
+}
+
+
+/* ICON */
+
+.forecast-icon {
+    font-size: 30px;
+
+    margin-bottom: 5px;
+}
+
+
+/* CONDITION */
+
+.forecast-condition {
+    font-size: 15px;
+
+    margin-bottom: 12px;
+
+    color: #0b315c;
+}
+
+
+/* TEMPERATURE */
+
+.forecast-temperature {
+    font-size: 17px;
+
+    font-weight: bold;
+
+    margin: 14px 0;
+}
+
+.max-temp {
+    color: #e85d04;
+}
+
+.temp-separator {
+    margin: 0 3px;
+
+    color: #555;
+}
+
+.min-temp {
+    color: #277da1;
+}
+
+
+/* FORECAST INFO */
+
+.forecast-info {
+    width: 100%;
+
+    margin-top: 5px;
+
+    font-size: 14px;
+
+    line-height: 1.5;
+}
+
+.forecast-info div {
+    margin: 7px 0;
+}
+
+.forecast-info strong {
+    margin-left: 4px;
+}
+
+
+/* ============================= */
+/* TABLET */
+/* ============================= */
+
+@media (max-width: 900px) {
+
+    #forecast {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+}
+
+
+/* ============================= */
+/* MOBILE */
+/* ============================= */
+
+@media (max-width: 700px) {
+
+    #forecast {
+        grid-template-columns: 1fr;
+    }
+
+    #forecast h2 {
+        text-align: center;
+    }
+
+    #forecast .forecast-card {
+        width: 100%;
+
+        max-width: 320px;
+
+        margin: auto;
+    }
+
+}
+
+        .forecast-card {
+    min-height: 285px;
+    padding: 18px 12px;
+
+    border-radius: 20px;
+
+    background: rgba(255, 255, 255, 0.92);
+
+    border: 1px solid rgba(255, 255, 255, 0.95);
+
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.12);
+
+    text-align: center;
+
+    transition: 0.3s;
+
+    color: #111827;
+}
+
+.forecast-card:hover {
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 12px 25px rgba(0, 0, 0, 0.18);
+}
+
+
+/* FORECAST DATE */
+
+.forecast-card h3 {
+    margin: 0 0 12px;
+
+    font-size: 17px;
+
+    line-height: 1.35;
+
+    color: #102a43;
+
+    font-weight: bold;
+}
+
+
+/* FORECAST TEXT */
+
+.forecast-card p {
+    margin: 11px 0;
+
+    font-size: 15px;
+
+    line-height: 1.45;
+
+    color: #1f2937;
+}
+
+
+/* CONDITION */
+
+.forecast-card b {
+    font-size: 16px;
+
+    color: #0b315c;
+}
+
+
+/* TEMPERATURE */
+
+.forecast-temperature {
+    font-size: 17px !important;
+
+    font-weight: bold;
+
+    margin: 14px 0 !important;
+}
+
+
+/* FORECAST DETAILS */
+
+.forecast-detail {
+    margin: 10px 0;
+
+    font-size: 15px;
+
+    line-height: 1.4;
+}
+
+.forecast-detail strong {
+    font-size: 15px;
+
+    color: #111827;
+}
+
+       /* CURRENT WEATHER BOX */
+
+#weatherResult {
+    margin-top: 25px;
+}
+
+.current-weather-card {
+    width: 100%;
+}
+
+.weather-location {
+    background: rgba(255, 255, 255, 0.90);
+    padding: 25px;
+    border-radius: 22px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    text-align: center;
+}
+
+.weather-location h2 {
+    color: #0b315c;
+    font-size: 27px;
+    margin-bottom: 12px;
+}
+
+.weather-location p {
+    color: #374151;
+    font-size: 17px;
+    margin: 0;
+}
+
+
+/* MAIN WEATHER BOX */
+
+.weather-main {
+    margin-top: 18px;
+    padding: 28px;
+
+    background: rgba(255, 255, 255, 0.92);
+
+    border-radius: 22px;
+
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.12);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 25px;
+    flex-wrap: wrap;
+}
+
+
+/* WEATHER ICON */
+
+.weather-icon-large {
+    font-size: 65px;
+}
+
+
+/* TEMPERATURE */
+
+.temperature-section {
+    text-align: center;
+}
+
+.temperature {
+    font-size: 52px;
+    font-weight: bold;
+    color: #1683ff;
+}
+
+.condition {
+    font-size: 18px;
+    margin-top: 7px;
+    color: #374151;
+}
+
+
+/* WEATHER DETAILS */
+
+.weather-details {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, minmax(150px, 1fr));
+
+    gap: 15px;
+
+    flex: 1;
+}
+
+.weather-detail {
+    padding: 18px;
+
+    border-radius: 16px;
+
+    background: rgba(235, 247, 255, 0.85);
+
+    box-shadow:
+        0 5px 12px rgba(0, 0, 0, 0.08);
+
+    text-align: center;
+}
+
+.weather-detail strong {
+    display: block;
+
+    color: #0b315c;
+
+    font-size: 16px;
+
+    margin-bottom: 8px;
+}
+
+.weather-detail span {
+    font-size: 17px;
+    color: #111827;
+}
+
+        .weather-card h2 {
+            color: #0b315c;
+            margin-bottom: 10px;
+        }
+
+        .temperature {
+            font-size: 52px;
+            font-weight: bold;
+            color: #1683ff;
+        }
+
+        .weather-details {
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fit, minmax(150px, 1fr));
+
+            gap: 15px;
+
+            margin-top: 25px;
+        }
+
+        .detail-box {
+            padding: 18px;
+
+            border-radius: 16px;
+
+            background:
+                rgba(235, 247, 255, 0.75);
+
+            box-shadow:
+                0 5px 12px
+                rgba(0, 0, 0, 0.08);
+        }
+
+        .detail-box strong {
+            display: block;
+
+            color: #0b315c;
+
+            margin-bottom: 7px;
+        }
+
+        /* MOBILE */
+
+        @media (max-width: 700px) {
+
+            body {
+                padding: 15px 10px;
+            }
+
+            .container {
+                padding: 25px 18px;
+                border-radius: 22px;
+            }
+
+            h1 {
+                font-size: 27px;
+            }
+
+            .search-area {
+                flex-direction: column;
+            }
+
+            #city {
+                width: 100%;
+            }
+
+            #searchBtn {
+                width: 100%;
+            }
+
+            .temperature {
+                font-size: 42px;
+            }
+            .forecast-container {
+               grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script>
+    if (!localStorage.getItem("token")) {
+        window.location.replace("login.html");
+    }
+</script>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- TITLE -->
+
+        <h1>
+            🌦️ Weather Prediction and Forecasting System
+        </h1>
+
+        <div class="subtitle">
+            Real-time Weather Updates and 10-Day Forecast
+        </div>
+
+
+        <!-- SEARCH -->
+
+        <div class="search-area">
+
+            <input
+                type="text"
+                id="city"
+                placeholder="🔍 Enter City or Village"
+                autocomplete="off"
+            >
+
+            <button id="searchBtn">
+                🔎 Search
+            </button>
+
+        </div>
+
+
+        <!-- ACTION BUTTONS -->
+<div class="action-buttons">
+
+    <button 
+        onclick="window.location.href='history.html'">
+
+        📋 Search History
+
+    </button>
+
+
+    <button id="notificationBtn" type="button">
+
+        🔔 Enable Weather Notifications
+
+    </button>
+
+
+    <button 
+        onclick="logout()">
+
+        🚪 Logout
+
+    </button>
+
+</div>
+    
+
+        <!-- CURRENT WEATHER -->
+
+        <div id="weatherResult">
+
+            <!-- Weather result will appear here -->
+
+        </div>
+
+
+        <!-- 10 DAY FORECAST -->
+
+        <div id="forecast">
+
+            <!-- Forecast will appear here -->
+
+        </div>
+
+    </div>
+
+
+    <!-- JAVASCRIPT -->
+
+    <script src="script.js"></script>
+
+    <script>
+    if ("Notification" in window) {
+        Notification.requestPermission().then(permission => {
+            console.log("Notification permission:", permission);
+        });
+    }
+</script>
+
+</body>
+
+</html>
