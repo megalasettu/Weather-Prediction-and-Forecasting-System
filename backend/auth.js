@@ -13,7 +13,7 @@ async function signup() {
 
     try {
 
-        const response = await fetch("http://localhost:3000/api/signup", {
+        const response = await fetch("https://weather-prediction-and-forecasting-system.onrender.com/api/signup", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
