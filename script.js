@@ -40,8 +40,8 @@ async function subscribeToPush() {
             await navigator.serviceWorker.ready;
 
         const response = await fetch(
-            "http://localhost:3000/api/vapid-public-key"
-        );
+    "https://weather-prediction-and-forecasting-system.onrender.com/api/vapid-public-key",
+);
 
         const data = await response.json();
 
@@ -61,7 +61,7 @@ async function subscribeToPush() {
             localStorage.getItem("token");
 
         await fetch(
-            "http://localhost:3000/api/push-subscription",
+            "https://weather-prediction-and-forecasting-system.onrender.com/api/history",
             {
                 method: "POST",
 
@@ -143,7 +143,7 @@ async function saveCurrentLocation() {
                 }
 
                 const response = await fetch(
-                    "http://localhost:3000/api/location",
+                    "https://weather-prediction-and-forecasting-system.onrender.com/api/location",
                     {
                         method: "POST",
 
@@ -430,10 +430,9 @@ async function getWeather() {
                 localStorage.getItem("token");
 
 
-            if (token) {
-
+            if (token)
                 await fetch(
-                    "http://localhost:3000/api/history",
+                    "https://weather-prediction-and-forecasting-system.onrender.com/api/history",
                     {
                         method: "POST",
 
@@ -475,7 +474,7 @@ async function getWeather() {
                     }
                 );
 
-            }
+            
 
         } catch (historyError) {
 
@@ -1615,7 +1614,7 @@ async function updateNotificationButton() {
         }
 
         const response = await fetch(
-            "http://localhost:3000/api/me",
+            "https://weather-prediction-and-forecasting-system.onrender.com/api/me",
             {
                 headers: {
                     "Authorization":
@@ -1831,7 +1830,7 @@ async function checkMyWeatherAlert() {
         // Check this logged-in user's
         // notification setting
         const userResponse = await fetch(
-            "http://localhost:3000/api/me",
+            "https://weather-prediction-and-forecasting-system.onrender.com/api/me",
             {
                 headers: {
                     "Authorization": "Bearer " + token
@@ -1913,45 +1912,45 @@ async function testWeatherNotification() {
         const token = localStorage.getItem("token");
 
         const response = await fetch(
-            "http://localhost:3000/api/test-alert",
-            {
-                headers: {
-                    "Authorization": "Bearer " + token
-                }
-            }
-        );
-
-        const data = await response.json();
-
-        if (
-            data.alert === true &&
-            Notification.permission === "granted"
-        ) {
-
-            new Notification(
-                "⚠️ " + data.type,
-                {
-                    body: data.message
-                }
-            );
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Test notification error:",
-            error
-        );
-
-    }
-
-}
-// Check current location weather alert
-checkMyWeatherAlert();
-
-// Check again every 10 minutes
-setInterval(
-    checkMyWeatherAlert,
-    10 * 60 * 1000
-);
+            "http://localhost:3000/api/test-alert", 
+            { 
+                headers: { 
+                    "Authorization": "Bearer " + token 
+                } 
+            } 
+        ); 
+ 
+        const data = await response.json(); 
+ 
+        if ( 
+            data.alert === true && 
+            Notification.permission === "granted" 
+        ) { 
+ 
+            new Notification( 
+                "⚠️ " + data.type, 
+                { 
+                    body: data.message 
+                } 
+            ); 
+ 
+        } 
+ 
+    } catch (error) { 
+ 
+        console.error( 
+            "Test notification error:", 
+            error 
+        ); 
+ 
+    } 
+ 
+} 
+// Check current location weather alert 
+checkMyWeatherAlert(); 
+ 
+// Check again every 10 minutes 
+setInterval( 
+    checkMyWeatherAlert, 
+    10 * 60 * 1000 
+); 
