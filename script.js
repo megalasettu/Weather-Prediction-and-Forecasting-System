@@ -432,7 +432,7 @@ async function getWeather() {
 
             if (token)
                 await fetch(
-                    "https://weather-prediction-and-forecasting-system.onrender.com/api/history",
+                    "https://weather-prediction-and-forecasting-system.onrender.com/api/push-subscription",
                     {
                         method: "POST",
 
@@ -1671,7 +1671,7 @@ if (notificationBtn) {
 
                 const meResponse =
                     await fetch(
-                        "http://localhost:3000/api/me",
+                        "https://weather-prediction-and-forecasting-system.onrender.com/api/me"
                         {
                             headers: {
                                 "Authorization":
@@ -1693,7 +1693,7 @@ if (notificationBtn) {
 
                     const response =
                         await fetch(
-                            "http://localhost:3000/api/notification",
+                           "https://weather-prediction-and-forecasting-system.onrender.com/api/notification"
                             {
                                 method: "POST",
 
@@ -1765,7 +1765,7 @@ if (notificationBtn) {
 
                 const response =
                     await fetch(
-                        "http://localhost:3000/api/notification",
+                      "https://weather-prediction-and-forecasting-system.onrender.com/api/notification"
                         {
                             method: "POST",
 
@@ -1861,7 +1861,7 @@ async function checkMyWeatherAlert() {
         // Check weather ONLY at this user's
         // current location
         const response = await fetch(
-            "http://localhost:3000/api/current-alert",
+           "https://weather-prediction-and-forecasting-system.onrender.com/api/current-alert"
             {
                 headers: {
                     "Authorization": "Bearer " + token
@@ -1912,7 +1912,7 @@ async function testWeatherNotification() {
         const token = localStorage.getItem("token");
 
         const response = await fetch(
-            "http://localhost:3000/api/test-alert", 
+            "https://weather-prediction-and-forecasting-system.onrender.com/api/test-alert"
             { 
                 headers: { 
                     "Authorization": "Bearer " + token 
