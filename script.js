@@ -529,7 +529,6 @@ async function getWeather() {
                     weatherCode
                 );
 
-
             // ======================================
             // MAX TEMPERATURE
             // ======================================
@@ -539,7 +538,6 @@ async function getWeather() {
                     weatherData.daily
                         .temperature_2m_max[i]
                 );
-
 
             // ======================================
             // MIN TEMPERATURE
@@ -1041,7 +1039,6 @@ function correctCommonSpelling(searchText) {
 
 }
 
-
 // ==========================================
 // OPEN-METEO SEARCH
 // ==========================================
@@ -1050,52 +1047,95 @@ async function searchOpenMeteo(searchText) {
 
     try {
 
+        const parts = searchText
+            .split(",")
+            .map(part => part.trim())
+            .filter(Boolean);
+
+        const mainName = parts[0];
+
         const url =
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchText)}&count=20&language=en&format=json`;
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(mainName)}&count=100&language=en&format=json`;
 
-
-        const response =
-            await fetch(url);
-
+        const response = await fetch(url);
 
         if (!response.ok) {
             return null;
         }
 
+        const data = await response.json();
 
-        const data =
-            await response.json();
-
-
-        if (
-            !data.results ||
-            data.results.length === 0
-        ) {
-
+        if (!data.results || data.results.length === 0) {
             return null;
-
         }
 
+        const typedName = normalizeName(mainName);
 
-        const typedName =
-            normalizeName(searchText);
+        // ==========================================
+        // FIND EXACT LOCATION NAME
+        // ==========================================
 
+        const exactResults = data.results.filter(item => {
 
-        const exactMatch =
-            data.results.find(item => {
+            if (!item.name) {
+                return false;
+            }
 
-                return item.name &&
-                    normalizeName(
-                        item.name
-                    ) === typedName;
+            return normalizeName(item.name) === typedName;
 
-            });
+        });
 
+        if (exactResults.length === 0) {
+            return null;
+        }
+
+        // ==========================================
+        // CHECK STATE / COUNTRY CONTEXT
+        // ==========================================
+
+        const contextResults = exactResults.filter(item => {
+
+            const searchableText = normalizeName(
+                [
+                    item.name,
+                    item.admin1,
+                    item.admin2,
+                    item.admin3,
+                    item.country
+                ]
+                    .filter(Boolean)
+                    .join(" ")
+            );
+
+            return parts.every(part =>
+                searchableText.includes(
+                    normalizeName(part)
+                )
+            );
+
+        });
+
+        // ==========================================
+        // USE CONTEXT MATCH
+        // ==========================================
 
         const result =
-            exactMatch ||
-            data.results[0];
+            contextResults.length > 0
+                ? contextResults[0]
+                : (
+                    parts.length === 1 &&
+                    exactResults.length === 1
+                        ? exactResults[0]
+                        : null
+                );
 
+        // ==========================================
+        // NO RELIABLE MATCH
+        // ==========================================
+
+        if (!result) {
+            return null;
+        }
 
         return {
 
@@ -1119,7 +1159,6 @@ async function searchOpenMeteo(searchText) {
 
         };
 
-
     } catch (error) {
 
         console.error(
@@ -1137,62 +1176,45 @@ async function searchOpenMeteo(searchText) {
 // ==========================================
 // SIMILAR LOCATION SEARCH
 // ==========================================
-
 async function searchSimilarOpenMeteo(searchText) {
 
     try {
 
-        const cleanName =
-            normalizeName(
-                searchText
-            );
+        const parts = searchText
+            .split(",")
+            .map(part => part.trim())
+            .filter(Boolean);
 
+        const mainName = parts[0];
+
+        const cleanName =
+            normalizeName(mainName);
 
         if (cleanName.length < 3) {
             return null;
         }
 
-
-        const prefix =
-            cleanName.substring(
-                0,
-                Math.min(
-                    4,
-                    cleanName.length
-                )
-            );
-
-
         const url =
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(prefix)}&count=100&language=en&format=json`;
-
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(mainName)}&count=100&language=en&format=json`;
 
         const response =
             await fetch(url);
-
 
         if (!response.ok) {
             return null;
         }
 
-
         const data =
             await response.json();
-
 
         if (
             !data.results ||
             data.results.length === 0
         ) {
-
             return null;
-
         }
 
-
-        let bestResult = null;
-        let bestScore = 0;
-
+        const candidates = [];
 
         for (const item of data.results) {
 
@@ -1200,12 +1222,8 @@ async function searchSimilarOpenMeteo(searchText) {
                 continue;
             }
 
-
             const candidate =
-                normalizeName(
-                    item.name
-                );
-
+                normalizeName(item.name);
 
             const score =
                 similarityScore(
@@ -1213,49 +1231,73 @@ async function searchSimilarOpenMeteo(searchText) {
                     candidate
                 );
 
+            const searchableText =
+                normalizeName(
+                    [
+                        item.name,
+                        item.admin1,
+                        item.admin2,
+                        item.admin3,
+                        item.country
+                    ]
+                        .filter(Boolean)
+                        .join(" ")
+                );
 
-            if (score > bestScore) {
+            const contextMatches =
+                parts.every(part =>
+                    searchableText.includes(
+                        normalizeName(part)
+                    )
+                );
 
-                bestScore = score;
-                bestResult = item;
-
+            if (!contextMatches) {
+                continue;
             }
 
+            candidates.push({
+                item,
+                score
+            });
         }
 
-
-        if (
-            !bestResult ||
-            bestScore < 0.55
-        ) {
-
+        if (candidates.length === 0) {
             return null;
-
         }
 
+        candidates.sort(
+            (a, b) =>
+                b.score - a.score
+        );
+
+        const best =
+            candidates[0];
+
+        if (best.score < 0.80) {
+            return null;
+        }
 
         return {
 
             name:
-                bestResult.name,
+                best.item.name,
 
             state:
-                bestResult.admin1 ||
-                bestResult.admin2 ||
+                best.item.admin1 ||
+                best.item.admin2 ||
                 "",
 
             country:
-                bestResult.country ||
+                best.item.country ||
                 "",
 
             latitude:
-                bestResult.latitude,
+                best.item.latitude,
 
             longitude:
-                bestResult.longitude
+                best.item.longitude
 
         };
-
 
     } catch (error) {
 
@@ -1269,8 +1311,6 @@ async function searchSimilarOpenMeteo(searchText) {
     }
 
 }
-
-
 // ==========================================
 // NORMALIZE LOCATION NAME
 // ==========================================
