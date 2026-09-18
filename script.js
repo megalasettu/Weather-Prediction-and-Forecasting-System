@@ -917,8 +917,27 @@ async function searchLocation(searchText) {
         correctCommonSpelling(
             searchText
         );
+    console.log("SEARCH TEXT:", searchText);
+    console.log("CORRECTED TEXT:", correctedText);
+// ==========================================
+// SALEM - TAMIL NADU PRIORITY
+// ==========================================
 
+const normalizedSearch =
+    normalizeName(correctedText);
 
+if (normalizedSearch === "salem") {
+
+     console.log("SALEM BLOCK HIT");
+    return {
+        name: "Salem",
+        state: "Tamil Nadu",
+        country: "India",
+        latitude: 11.6643,
+        longitude: 78.1460
+    };
+
+}
     // ==========================================
     // 2. EXACT NOMINATIM SEARCH
     // ==========================================
@@ -1043,8 +1062,8 @@ function correctCommonSpelling(searchText) {
         "sydny": "Sydney",
         "sydnei": "Sydney",
 
-        "tornto": "Toronto"
-
+        "tornto": "Toronto",
+        "selam": "Salem"
     };
 
 
