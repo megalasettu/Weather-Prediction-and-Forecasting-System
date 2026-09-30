@@ -15,6 +15,7 @@ saveCurrentLocation();
 // REGISTER SERVICE WORKER
 // ==========================================
 
+/*
 if ("serviceWorker" in navigator) {
 
     navigator.serviceWorker
@@ -30,7 +31,7 @@ if ("serviceWorker" in navigator) {
         });
 
 }
-
+*/
 
 // ==========================================
 // WEB PUSH SUBSCRIPTION
@@ -115,7 +116,26 @@ const weatherResult =
 const forecast =
     document.getElementById("forecast");
 
+const recommendationMessage =
+    document.getElementById("recommendationMessage");
 
+const recommendationTip =
+    document.getElementById("recommendationTip");
+
+    // Clear weather results when search box is empty
+cityInput.addEventListener("input", function () {
+    if (cityInput.value.trim() === "") {
+        weatherResult.innerHTML = "";
+        forecast.innerHTML = "";
+
+        const smartRecommendation =
+            document.getElementById("smartRecommendation");
+
+        if (smartRecommendation) {
+            smartRecommendation.style.display = "none";
+        }
+    }
+});
 // ==========================================
 // SEARCH BUTTON
 // ==========================================
@@ -262,12 +282,10 @@ async function getWeather() {
 
         return;
     }
+      weatherResult.innerHTML =
+         `🔍 Searching for <strong>${searchText}</strong>... Please wait a moment.`;
 
-    weatherResult.innerHTML =
-        "<p>🔍 Searching location...</p>";
-
-    forecast.innerHTML = "";
-
+      forecast.innerHTML = "";
     try {
 
         // ==========================================
@@ -277,6 +295,7 @@ async function getWeather() {
         const location =
             await searchLocation(searchText);
 
+      
         if (!location) {
 
             weatherResult.innerHTML = `
@@ -297,7 +316,7 @@ async function getWeather() {
         // ==========================================
 
         const weatherURL =
-            `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature&daily=weather_code,temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,precipitation_probability_max,wind_speed_10m_max&timezone=auto&forecast_days=11`;
+           `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,precipitation_probability_max,precipitation_sum,wind_speed_10m_max&timezone=auto&forecast_days=11`;
 
         const weatherResponse =
             await fetch(weatherURL);
@@ -312,7 +331,7 @@ async function getWeather() {
 
         const weatherData =
             await weatherResponse.json();
-
+       
         if (
             !weatherData.current ||
             !weatherData.daily
@@ -334,24 +353,21 @@ async function getWeather() {
                 weatherData.current.weather_code
             );
 
-        const weatherDate =
-            new Date(
-                weatherData.current.time
+            // SMART WEATHER RECOMMENDATION
+           
+            updateSmartRecommendation(
+              weatherData.current.weather_code,
+              weatherData.current.apparent_temperature,
+              weatherData.current.wind_speed_10m
             );
+            const currentDate =
+               weatherData.current.time.split("T")[0];
 
-        const formattedDate =
-            weatherDate.toLocaleDateString(
-                "en-IN",
-                {
-                    weekday: "long",
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric"
-                }
-            );
+            const formattedDate =
+                formatCurrentDate(currentDate);
 
-        const locationText =
-            formatLocation(location);
+            const locationText =
+                formatLocation(location);
 
 
         // ==========================================
@@ -377,9 +393,10 @@ async function getWeather() {
                 <div class="weather-main">
 
                     <div class="weather-icon-large">
-
+ 
                         ${getWeatherIcon(
-                            weatherData.current.weather_code
+                            weatherData.current.weather_code,
+                            weatherData.current.is_day
                         )}
 
                     </div>
@@ -601,7 +618,9 @@ async function getWeather() {
                 weatherData.daily
                     .precipitation_probability_max[i] ?? 0;
 
-
+            const expectedRain =
+                weatherData.daily
+                    .precipitation_sum[i] ?? 0;
             // ======================================
             // WIND SPEED
             // ======================================
@@ -682,6 +701,18 @@ async function getWeather() {
                                 ${rainChance}%
 
                             </strong>
+
+                        </div>
+
+                        <div class="expected-rain"> 
+
+                         ☔ Expected Rain
+
+                          <strong>
+
+                             ${Number(expectedRain).toFixed(1)} mm
+
+                          </strong>
 
                         </div>
 
@@ -799,7 +830,32 @@ function cleanCountryName(country) {
 
 }
 
+ // ==========================================
+// FORMAT CURRENT DATE
+// ==========================================
 
+function formatCurrentDate(dateString) {
+
+    const [year, month, day] =
+        dateString.split("-").map(Number);
+
+    const date =
+        new Date(
+            year,
+            month - 1,
+            day
+        );
+
+    return date.toLocaleDateString(
+        "en-IN",
+        {
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+            year: "numeric"
+        }
+    );
+}
 // ==========================================
 // FORMAT FORECAST DATE
 // ==========================================
@@ -811,16 +867,21 @@ function formatForecastDate(dateString) {
             dateString + "T00:00:00"
         );
 
-    return date.toLocaleDateString(
-        "en-IN",
-        {
-            weekday: "short",
-            day: "2-digit",
-            month: "short",
-            year: "numeric"
-        }
-    );
+    const formattedDate =
+        date.toLocaleDateString(
+            "en-IN",
+            {
+                weekday: "long",
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+            }
+        );
 
+    return formattedDate.replace(
+        /,\s*(\d{4})$/,
+        ",<br>$1"
+    );
 }
 
 
@@ -828,40 +889,59 @@ function formatForecastDate(dateString) {
 // WEATHER ICON
 // ==========================================
 
-function getWeatherIcon(code) {
+function getWeatherIcon(code, isDay = 1) {
 
-    if (code === 0)
-        return "☀️";
+    // Clear Sky
+    if (code === 0) {
+        return isDay === 1 ? "☀️" : "🌙";
+    }
 
-    if (code === 1)
-        return "🌤️";
+    // Mainly Clear
+    if (code === 1) {
+        return isDay === 1 ? "🌤️" : "🌙";
+    }
 
-    if (code === 2)
-        return "⛅";
+    // Partly Cloudy
+    if (code === 2) {
+        return isDay === 1 ? "⛅" : "☁️";
+    }
 
-    if (code === 3)
+    // Overcast
+    if (code === 3) {
         return "☁️";
+    }
 
-    if (code >= 45 && code <= 48)
+    // Fog
+    if (code >= 45 && code <= 48) {
         return "🌫️";
+    }
 
-    if (code >= 51 && code <= 57)
+    // Drizzle
+    if (code >= 51 && code <= 57) {
         return "🌦️";
+    }
 
-    if (code >= 61 && code <= 67)
+    // Rain
+    if (code >= 61 && code <= 67) {
         return "🌧️";
+    }
 
-    if (code >= 71 && code <= 77)
+    // Snow
+    if (code >= 71 && code <= 77) {
         return "❄️";
+    }
 
-    if (code >= 80 && code <= 82)
+    // Rain Showers
+    if (code >= 80 && code <= 82) {
         return "🌦️";
+    }
 
-    if (code >= 95 && code <= 99)
+    // Thunderstorm
+    if (code >= 95 && code <= 99) {
         return "⛈️";
+    }
 
-    return "🌤️";
-
+    return isDay === 1 ? "🌤️" : "🌙";
 }
 
 
@@ -904,97 +984,271 @@ function getWeatherCondition(code) {
 
 
 // ==========================================
-// LOCATION SEARCH
+// SMART WEATHER RECOMMENDATION
+// ==========================================
+function updateSmartRecommendation(
+    weatherCode,
+    feelsLike,
+    windSpeed
+) {
+    const smartRecommendation =
+        document.getElementById("smartRecommendation");
+
+    if (smartRecommendation) {
+        smartRecommendation.style.display = "block";
+    }
+
+    if (!recommendationMessage || !recommendationTip) {
+        return;
+    }
+
+    // THUNDERSTORM
+    if (weatherCode >= 95 && weatherCode <= 99) {
+
+        recommendationMessage.innerHTML =
+            "⛈️ Thunderstorm conditions are present right now.<br>" +
+            "Outdoor activities may be affected.";
+
+        recommendationTip.textContent =
+            "🎒 Tip: Stay indoors and follow local weather alerts.";
+
+        return;
+    }
+
+    // STRONG WIND
+    if (windSpeed >= 30) {
+
+        recommendationMessage.innerHTML =
+            "💨 Strong winds are present right now.<br>" +
+            "Be careful during outdoor activities.";
+
+        recommendationTip.textContent =
+            "🎒 Tip: Avoid exposed areas and secure loose items.";
+
+        return;
+    }
+
+    // CHECK RAIN
+    const isRain =
+        (weatherCode >= 51 && weatherCode <= 67) ||
+        (weatherCode >= 80 && weatherCode <= 82);
+
+    // RAIN + FEELS LIKE
+    if (isRain) {
+
+        if (feelsLike < 20) {
+
+            recommendationMessage.innerHTML =
+                "🌧️ Rain is likely right now.<br>" +
+                "It also feels quite cold.";
+
+            recommendationTip.textContent =
+                "🎒 Tip: Carry an umbrella and wear suitable warm clothing.";
+
+       } else if (feelsLike >= 20 && feelsLike < 28)  {
+
+            recommendationMessage.innerHTML =
+                "🌧️ Rain is likely right now.<br>" +
+                "The temperature feels pleasant.";
+
+            recommendationTip.textContent =
+                "🎒 Tip: Carry an umbrella when going out.";
+
+        } else if (feelsLike >= 28 && feelsLike <= 33) {
+
+            recommendationMessage.innerHTML =
+                "🌧️ Rain is likely right now.<br>" +
+                "It also feels quite warm.";
+
+            recommendationTip.textContent =
+                "🎒 Tip: Carry an umbrella and stay hydrated.";
+
+        } else if (feelsLike >= 34 && feelsLike <= 38) {
+
+            recommendationMessage.innerHTML =
+                "🌧️ Rain is likely right now.<br>" +
+                "It also feels quite hot.";
+
+            recommendationTip.textContent =
+                "🎒 Tip: Carry an umbrella and stay hydrated.";
+
+        } else {
+
+            recommendationMessage.innerHTML =
+                "🌧️ Rain is likely right now.<br>" +
+                "It feels extremely hot.";
+
+            recommendationTip.textContent =
+                "🎒 Tip: Carry an umbrella, stay hydrated, and avoid prolonged outdoor activity.";
+        }
+
+        return;
+    }
+
+    // COLD
+    if (feelsLike < 20) {
+
+        recommendationMessage.innerHTML =
+            "❄️ It feels quite cold right now.<br>" +
+            "Wear a jacket when going outside.";
+
+        recommendationTip.textContent =
+            "🧥 Tip: Keep yourself warm.";
+
+        return;
+    }
+
+    // PLEASANT
+    if (feelsLike >= 20 && feelsLike <= 28) {
+
+        recommendationMessage.innerHTML =
+            "😊 It feels pleasant outside.<br>" +
+            "Good time to go out.";
+
+        recommendationTip.textContent =
+            "🌤️ Tip: Enjoy your outdoor activities.";
+
+        return;
+    }
+
+    // WARM
+    if (feelsLike >= 28 && feelsLike <= 33) {
+
+        recommendationMessage.innerHTML =
+            "🌤️ It feels quite warm right now.<br>" +
+            "Stay hydrated when going outside.";
+
+        recommendationTip.textContent =
+            "💧 Tip: Drink enough water when going outside.";
+
+        return;
+    }
+
+    // HOT
+    if (feelsLike >= 34 && feelsLike <= 38) {
+
+        recommendationMessage.innerHTML =
+            "🥵 It feels quite hot right now.<br>" +
+            "Avoid prolonged direct sunlight.";
+
+        recommendationTip.textContent =
+            "💧 Tip: Stay hydrated and take breaks from the heat.";
+
+        return;
+    }
+
+    // VERY HOT
+    if (feelsLike >= 39) {
+
+       recommendationMessage.innerHTML =
+          "🔥 It feels extremely hot right now.<br>" +
+          "Avoid prolonged outdoor activity.";
+
+       recommendationTip.textContent =
+          "💧 Tip: Stay hydrated and avoid direct sunlight.";
+
+    return;
+}
+
+}
+// ==========================================
+// LOCATION SEARCH - STRICT EXACT MATCH
 // ==========================================
 
 async function searchLocation(searchText) {
 
-    // ==========================================
-    // 1. COMMON SPELLING CORRECTION
-    // ==========================================
+    const originalText =
+        searchText.trim();
 
-    const correctedText =
-        correctCommonSpelling(
-            searchText
-        );
-    console.log("SEARCH TEXT:", searchText);
-    console.log("CORRECTED TEXT:", correctedText);
-// ==========================================
-// SALEM - TAMIL NADU PRIORITY
-// ==========================================
+    if (!originalText) {
+        return null;
+    }
 
-const normalizedSearch =
-    normalizeName(correctedText);
+    console.log(
+        "STRICT SEARCH TEXT:",
+        originalText
+    );
 
-if (normalizedSearch === "salem") {
+    const normalize = (value) => {
 
-     console.log("SALEM BLOCK HIT");
-    return {
-        name: "Salem",
-        state: "Tamil Nadu",
-        country: "India",
-        latitude: 11.6643,
-        longitude: 78.1460
+        return String(value || "")
+            .toLowerCase()
+            .trim()
+            .replace(/[^\p{L}\p{N}]+/gu, "");
+
     };
 
-}
+    const mainName =
+        originalText
+            .split(",")[0]
+            .trim();
+
+    const typedName =
+        normalize(mainName);
+
+
     // ==========================================
-    // 2. EXACT NOMINATIM SEARCH
+    // 1. OPEN-METEO
     // ==========================================
 
     let location =
-        await searchNominatim(
-            searchText
-        );
+        await searchOpenMeteo(originalText);
 
     if (location) {
-        return location;
-    }
 
+        const returnedName =
+            normalize(location.name);
 
-    // ==========================================
-    // 3. EXACT OPEN-METEO SEARCH
-    // ==========================================
-
-    location =
-        await searchOpenMeteo(
-            correctedText
+        console.log(
+            "OPEN-METEO RESULT:",
+            location.name
         );
 
-    if (location) {
-        return location;
-    }
-
-
-    // ==========================================
-    // 4. ORIGINAL TEXT EXACT SEARCH
-    // ==========================================
-
-    if (
-        correctedText.toLowerCase().trim() !==
-        searchText.toLowerCase().trim()
-    ) {
-
-        location =
-            await searchOpenMeteo(
-                searchText
-            );
-
-        if (location) {
+        if (returnedName === typedName) {
             return location;
         }
 
+        console.log(
+            "OPEN-METEO REJECTED:",
+            location.name
+        );
     }
 
 
     // ==========================================
-    // 5. SIMILAR SEARCH
+    // 2. NOMINATIM
     // ==========================================
 
     location =
-        await searchSimilarOpenMeteo(
-            searchText
+        await searchNominatim(originalText);
+
+    if (location) {
+
+        const returnedName =
+            normalize(location.name);
+
+        console.log(
+            "NOMINATIM RESULT:",
+            location.name
         );
+
+        if (returnedName === typedName) {
+            return location;
+        }
+
+        console.log(
+            "NOMINATIM REJECTED:",
+            location.name
+        );
+    }
+
+
+    // ==========================================
+    // 3. KNOWN VILLAGE
+    // ==========================================
+
+    location =
+        searchKnownVillage(originalText);
 
     if (location) {
         return location;
@@ -1002,74 +1256,15 @@ if (normalizedSearch === "salem") {
 
 
     // ==========================================
-    // 6. KNOWN VILLAGE FALLBACK
+    // 4. NOT FOUND
     // ==========================================
 
-    location =
-        searchKnownVillage(
-            searchText
-        );
-
-    if (location) {
-        return location;
-    }
-
-
-    // ==========================================
-    // 7. NO LOCATION
-    // ==========================================
+    console.log(
+        "LOCATION NOT FOUND:",
+        originalText
+    );
 
     return null;
-
-}
-
-// ==========================================
-// COMMON SPELLING CORRECTION
-// ==========================================
-
-function correctCommonSpelling(searchText) {
-
-    const name =
-        searchText
-            .toLowerCase()
-            .trim();
-
-
-    const corrections = {
-
-        "channai": "Chennai",
-        "chenai": "Chennai",
-        "chenni": "Chennai",
-        "chennnai": "Chennai",
-        "chenna": "Chennai",
-
-        "medurai": "Madurai",
-        "maduri": "Madurai",
-        "madurrai": "Madurai",
-
-        "banglore": "Bangalore",
-        "bangalor": "Bangalore",
-
-        "londn": "London",
-        "londonn": "London",
-
-        "pariss": "Paris",
-        "parsi": "Paris",
-
-        "tokoyo": "Tokyo",
-        "tokio": "Tokyo",
-
-        "sydny": "Sydney",
-        "sydnei": "Sydney",
-
-        "tornto": "Toronto",
-        "selam": "Salem"
-    };
-
-
-    return corrections[name] ||
-        searchText;
-
 }
 
 
@@ -1080,184 +1275,146 @@ function correctCommonSpelling(searchText) {
 async function searchOpenMeteo(searchText) {
 
     try {
+        const parts = searchText
+            .split(",")
+            .map(p => p.trim())
+            .filter(Boolean);
 
-        const parts =
-            searchText
-                .split(",")
-                .map(part => part.trim())
-                .filter(Boolean);
+        const mainName = parts[0];
 
-        if (parts.length === 0) {
-    return null;
-}
-
-const mainName =
-    parts[0];
-
-const typedName =
-    normalizeName(
-        mainName
-    );
-
-if (!typedName) {
-    return null;
-}
-        if (!typedName) {
+        if (!mainName) {
             return null;
         }
 
 
         const url =
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(mainName)}&count=20&language=en&format=json`;
+            `https://geocoding-api.open-meteo.com/v1/search` +
+            `?name=${encodeURIComponent(mainName)}` +
+            `&count=100` +
+            `&language=en` +
+            `&format=json`;
 
-
-        const response =
-            await fetch(url);
+        const response = await fetch(url);
 
         if (!response.ok) {
             return null;
         }
 
+        const data = await response.json();
 
-        const data =
-            await response.json();
-
-        if (
-            !data.results ||
-            data.results.length === 0
-        ) {
-
+        if (!data.results || data.results.length === 0) {
             return null;
-
         }
 
+        const normalize = (value) => {
+            return String(value || "")
+                .toLowerCase()
+                .trim()
+                .replace(/[^\p{L}\p{N}]+/gu, "");
+        };
 
-        // ==========================================
-        // ONLY EXACT NAME MATCHES
-        // ==========================================
+        const typedName = normalize(mainName);
 
-        const exactResults =
-            data.results.filter(item => {
+        // Exact name match
+        const exactResults = data.results.filter(item => {
+            return normalize(item.name) === typedName;
+        });
 
-                if (!item.name) {
-                    return false;
-                }
+        // If country/state/city is also typed,
+        // make sure the result belongs to that context.
+        const contextResults = exactResults.filter(item => {
 
-                return (
-                    normalizeName(item.name) ===
-                    typedName
+            if (parts.length <= 1) {
+                return true;
+            }
+
+            const searchableText = [
+                item.name,
+                item.admin1,
+                item.admin2,
+                item.admin3,
+                item.country
+            ]
+                .filter(Boolean)
+                .map(normalize);
+
+            return parts.every(part => {
+                const normalizedPart = normalize(part);
+
+                return searchableText.some(value =>
+                    value.includes(normalizedPart)
                 );
-
             });
+        });
 
-
-        if (
-            exactResults.length === 0
-        ) {
-
-            return null;
-
-        }
-
-
-        // ==========================================
-        // CONTEXT MATCH
-        // ==========================================
-
-        const contextResults =
-            exactResults.filter(item => {
-
-                const searchableText =
-                    normalizeName(
-                        [
-                            item.name,
-                            item.admin1,
-                            item.admin2,
-                            item.admin3,
-                            item.country
-                        ]
-                            .filter(Boolean)
-                            .join(" ")
-                    );
-
-
-                return parts.every(part => {
-
-                    const cleanPart =
-                        normalizeName(part);
-
-                    return (
-                        cleanPart &&
-                        searchableText.includes(
-                            cleanPart
-                        )
-                    );
-
-                });
-
-            });
-
-
-        // ==========================================
-        // SELECT BEST EXACT RESULT
-        // ==========================================
-
-        const candidates =
+        let candidates =
             contextResults.length > 0
                 ? contextResults
-                : (
-                    parts.length === 1
-                        ? exactResults
-                        : []
-                );
+                : parts.length === 1
+                    ? exactResults
+                    : [];
 
-
-        if (
-            candidates.length === 0
-        ) {
-
+        if (candidates.length === 0) {
             return null;
 
         }
 
+        // Prefer actual populated places over administrative areas
+        candidates.sort((a, b) => {
 
-        candidates.sort(
-            (a, b) => {
+    const getPlacePriority = (item) => {
 
-                const typeDifference =
-                    getLocationTypePriority(b) -
-                    getLocationTypePriority(a);
+        const feature = String(
+            item.feature_code || ""
+        ).toUpperCase();
 
-                if (
-                    typeDifference !== 0
-                ) {
+        if (
+            feature.startsWith("PPLC") ||
+            feature.startsWith("PPLA") ||
+            feature.startsWith("PPL")
+        ) {
+            return 2;
+        }
 
-                    return typeDifference;
+        if (
+            feature.startsWith("ADM1") ||
+            feature.startsWith("ADM2")
+        ) {
+            return 1;
+        }
 
-                }
+        return 0;
+    };
 
-                return (
-                    (b.population || 0) -
-                    (a.population || 0)
-                );
+    const placePriorityDifference =
+        getPlacePriority(b) -
+        getPlacePriority(a);
 
-            }
-        );
+    if (placePriorityDifference !== 0) {
+        return placePriorityDifference;
+    }
 
+    // Among actual populated places,
+    // prefer the larger population.
+    return (
+        Number(b.population || 0) -
+        Number(a.population || 0)
+    );
+});
+        const result = candidates[0];
 
-        const result =
-            candidates[0];
-
-
-        return createLocationObject(
-            result
-        );
-
+        return {
+            name: result.name,
+            state: result.admin1 || result.admin2 || "",
+            country: result.country || "",
+            latitude: Number(result.latitude),
+            longitude: Number(result.longitude)
+        };
 
     } catch (error) {
 
         console.error(
-            "Open-Meteo exact search error:",
+            "Open-Meteo location search error:",
             error
         );
 
@@ -1385,43 +1542,325 @@ async function searchSimilarOpenMeteo(searchText) {
             return null;
         }
 
-        const mainName =
-            parts[0];
+        const mainName = parts[0];
 
         const cleanName =
-            normalizeName(
-                mainName
+            normalizeName(mainName);
+
+        if (cleanName.length < 3) {
+            return null;
+
+        }
+
+
+        // ==========================================
+        // 1. NOMINATIM SEARCH
+        // ==========================================
+
+        const nominatimURL =
+            `https://nominatim.openstreetmap.org/search` +
+            `?format=jsonv2` +
+            `&q=${encodeURIComponent(searchText)}` +
+            `&limit=50` +
+            `&addressdetails=1` +
+            `&namedetails=1`;
+
+        const nominatimResponse =
+            await fetch(nominatimURL);
+
+        if (nominatimResponse.ok) {
+
+            const nominatimData =
+                await nominatimResponse.json();
+
+            const candidates = [];
+
+            for (const item of nominatimData) {
+
+                const address =
+                    item.address || {};
+
+                const names = [
+
+                    item.name,
+
+                    ...Object.values(
+                        item.namedetails || {}
+                    ),
+
+                    address.city,
+                    address.town,
+                    address.village,
+                    address.hamlet,
+                    address.municipality,
+                    address.suburb
+
+                ].filter(Boolean);
+
+
+                let bestScore = 0;
+                let bestDistance = 999;
+
+
+                for (const name of names) {
+
+                    const candidateName =
+                        normalizeName(name);
+
+                    if (!candidateName) {
+                        continue;
+                    }
+
+
+                    const distance =
+                        levenshteinDistance(
+                            cleanName,
+                            candidateName
+                        );
+
+
+                    const maxLength =
+                        Math.max(
+                            cleanName.length,
+                            candidateName.length
+                        );
+
+
+                    const score =
+                        maxLength > 0
+                            ? 1 - (
+                                distance /
+                                maxLength
+                            )
+                            : 0;
+
+
+                    if (score > bestScore) {
+
+                        bestScore =
+                            score;
+
+                        bestDistance =
+                            distance;
+
+                    }
+
+                }
+
+
+                // High-confidence match only
+                if (bestScore < 0.80) {
+                    continue;
+                }
+
+
+                // ==========================================
+                // CONTEXT CHECK
+                // ==========================================
+
+                const searchableText =
+                    normalizeName(
+                        [
+
+                            item.name,
+                            item.display_name,
+
+                            address.city,
+                            address.town,
+                            address.village,
+                            address.hamlet,
+                            address.municipality,
+                            address.suburb,
+
+                            address.state,
+                            address.province,
+                            address.region,
+                            address.state_district,
+
+                            address.country
+
+                        ]
+                            .filter(Boolean)
+                            .join(" ")
+                    );
+
+
+                const contextMatches =
+                    parts.every(part => {
+
+                        const cleanPart =
+                            normalizeName(part);
+
+                        return (
+                            cleanPart &&
+                            searchableText.includes(
+                                cleanPart
+                            )
+                        );
+
+                    });
+
+
+                if (!contextMatches) {
+                    continue;
+                }
+
+
+                candidates.push({
+
+                    item:
+                        item,
+
+                    score:
+                        bestScore,
+
+                    distance:
+                        bestDistance
+
+                });
+
+            }
+
+
+            // ==========================================
+            // SORT BEST RESULT
+            // ==========================================
+
+            candidates.sort(
+                (a, b) => {
+
+                    if (
+                        b.score !==
+                        a.score
+                    ) {
+
+                        return (
+                            b.score -
+                            a.score
+                        );
+
+                    }
+
+
+                    if (
+                        a.distance !==
+                        b.distance
+                    ) {
+
+                        return (
+                            a.distance -
+                            b.distance
+                        );
+
+                    }
+
+
+                    return (
+                        getLocationTypePriority(
+                            b.item
+                        ) -
+                        getLocationTypePriority(
+                            a.item
+                        )
+                    );
+
+                }
             );
 
 
-        if (
-            cleanName.length < 3
-        ) {
+            if (candidates.length > 0) {
 
-            return null;
+                const best =
+                    candidates[0];
+
+
+                const address =
+                    best.item.address || {};
+
+
+                const latitude =
+                    parseFloat(
+                        best.item.lat
+                    );
+
+                const longitude =
+                    parseFloat(
+                        best.item.lon
+                    );
+
+
+                if (
+                    !Number.isNaN(latitude) &&
+                    !Number.isNaN(longitude)
+                ) {
+
+                    return {
+
+                      name:
+                         address.village ||
+                         address.hamlet ||
+                         address.suburb ||
+                         address.town ||
+                         address.city ||
+                         address.municipality ||
+                         best.item.name,
+
+                        state:
+                            address.state ||
+                            address.province ||
+                            address.region ||
+                            address.state_district ||
+                            "",
+
+                        country:
+                            cleanCountryName(
+                                address.country ||
+                                ""
+                            ),
+
+                        latitude:
+                            latitude,
+
+                        longitude:
+                            longitude
+
+                    };
+
+                }
+
+            }
 
         }
 
 
-        const url =
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(mainName)}&count=20&language=en&format=json`;
+        // ==========================================
+        // 2. OPEN-METEO SIMILAR SEARCH
+        // ==========================================
+
+        const openMeteoURL =
+            `https://geocoding-api.open-meteo.com/v1/search` +
+            `?name=${encodeURIComponent(mainName)}` +
+            `&count=100` +
+            `&language=en` +
+            `&format=json`;
 
 
-        const response =
-            await fetch(url);
+        const openMeteoResponse =
+            await fetch(openMeteoURL);
 
-        if (!response.ok) {
+
+        if (!openMeteoResponse.ok) {
             return null;
         }
 
 
-        const data =
-            await response.json();
+        const openMeteoData =
+            await openMeteoResponse.json();
 
 
         if (
-            !data.results ||
-            data.results.length === 0
+            !openMeteoData.results ||
+            openMeteoData.results.length === 0
         ) {
 
             return null;
@@ -1433,7 +1872,8 @@ async function searchSimilarOpenMeteo(searchText) {
 
 
         for (
-            const item of data.results
+            const item
+            of openMeteoData.results
         ) {
 
             if (!item.name) {
@@ -1447,12 +1887,8 @@ async function searchSimilarOpenMeteo(searchText) {
                 );
 
 
-            if (
-                candidate.length === 0
-            ) {
-
+            if (!candidate) {
                 continue;
-
             }
 
 
@@ -1471,51 +1907,31 @@ async function searchSimilarOpenMeteo(searchText) {
 
 
             const score =
-                1 -
-                (
-                    distance /
-                    maxLength
-                );
+                maxLength > 0
+                    ? 1 - (
+                        distance /
+                        maxLength
+                    )
+                    : 0;
 
 
-            // ==========================================
-            // STRICT SIMILARITY LIMIT
-            // ==========================================
-
-            const maxAllowedDistance =
-                cleanName.length <= 5
-                    ? 1
-                    : cleanName.length <= 10
-                        ? 2
-                        : 3;
-
-
-            if (
-                distance >
-                maxAllowedDistance
-            ) {
-
+            if (score < 0.80) {
                 continue;
-
             }
 
 
-            // ==========================================
-            // CONTEXT MATCH
-            // ==========================================
-
             const searchableText =
-                normalizeName(
-                    [
-                        item.name,
-                        item.admin1,
-                        item.admin2,
-                        item.admin3,
-                        item.country
-                    ]
-                        .filter(Boolean)
-                        .join(" ")
-                );
+                [
+
+                    item.name,
+                    item.admin1,
+                    item.admin2,
+                    item.admin3,
+                    item.country
+
+                ]
+                    .filter(Boolean)
+                    .map(normalizeName);
 
 
             const contextMatches =
@@ -1524,11 +1940,11 @@ async function searchSimilarOpenMeteo(searchText) {
                     const cleanPart =
                         normalizeName(part);
 
-                    return (
-                        cleanPart &&
-                        searchableText.includes(
-                            cleanPart
-                        )
+                    return searchableText.some(
+                        value =>
+                            value.includes(
+                                cleanPart
+                            )
                     );
 
                 });
@@ -1555,18 +1971,10 @@ async function searchSimilarOpenMeteo(searchText) {
         }
 
 
-        if (
-            candidates.length === 0
-        ) {
-
+        if (candidates.length === 0) {
             return null;
-
         }
 
-
-        // ==========================================
-        // SORT BEST SIMILAR RESULT
-        // ==========================================
 
         candidates.sort(
             (a, b) => {
@@ -1612,48 +2020,6 @@ async function searchSimilarOpenMeteo(searchText) {
 
         const best =
             candidates[0];
-
-
-        // ==========================================
-        // HIGH CONFIDENCE REQUIRED
-        // ==========================================
-
-        if (
-            best.score < 0.80
-        ) {
-
-            return null;
-
-        }
-
-
-        // ==========================================
-        // AMBIGUOUS SIMILAR RESULTS
-        // ==========================================
-
-        if (
-            candidates.length > 1
-        ) {
-
-            const second =
-                candidates[1];
-
-
-            if (
-                second.score >= 0.80 &&
-                Math.abs(
-                    best.score -
-                    second.score
-                ) < 0.05 &&
-                best.distance ===
-                second.distance
-            ) {
-
-                return null;
-
-            }
-
-        }
 
 
         return createLocationObject(
@@ -1845,6 +2211,51 @@ function searchKnownVillage(searchText) {
 
     }
 
+    if (name === "eriyur") {
+     return {
+        name: "Eriyur",
+        state: "Tamil Nadu",
+        country: "India",
+        latitude: 12.012363,
+        longitude: 77.800919
+     };
+}
+
+    if (name === "vazhapadi" || name === "valapadi") {
+    return {
+        name: "Vazhapadi",
+        state: "Tamil Nadu",
+        country: "India",
+        latitude: 11.6554,
+        longitude: 78.4012
+    };
+}
+if (
+    name === "sigaralahalli" ||
+    name === "sigralahalli" ||
+    name === "sigaiahalli" ||
+    name === "segalahalli"
+) {
+    return {
+        name: "Sigaralahalli",
+        state: "Tamil Nadu",
+        country: "India",
+        latitude: 12.057826,
+        longitude: 77.792166
+    };
+}
+if (
+    name === "koorkampatti" ||
+    name === "koorkampatti"
+) {
+    return {
+        name: "Koorkampatti",
+        state: "Tamil Nadu",
+        country: "India",
+        latitude: 12.024369,
+        longitude: 77.793834
+    };
+}
 
     return null;
 
@@ -1866,38 +2277,25 @@ async function searchNominatim(searchText) {
                 .map(part => part.trim())
                 .filter(Boolean);
 
-
-        if (
-            parts.length === 0
-        ) {
-
+        if (parts.length === 0) {
             return null;
 
         }
 
+        const mainName = parts[0];
 
-        const mainName =
-            parts[0];
-
-
-        const cleanMainName =
-            mainName
-                .toLowerCase()
-                .trim();
-
-
-        if (
-            cleanMainName.length === 0
-        ) {
-
+        if (!mainName) {
             return null;
 
         }
 
 
         const url =
-            `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(searchText)}&limit=50&addressdetails=1&namedetails=1`;
-
+            `https://nominatim.openstreetmap.org/search` +
+            `?format=jsonv2` +
+            `&q=${encodeURIComponent(searchText)}` +
+            `&limit=50` +
+            `&addressdetails=1`;
 
         const response =
             await fetch(url);
@@ -1905,148 +2303,103 @@ async function searchNominatim(searchText) {
 
         if (!response.ok) {
             return null;
+
         }
 
 
         const data =
             await response.json();
 
-
-        if (
-            !data ||
-            data.length === 0
-        ) {
-
+        if (!data || data.length === 0) {
             return null;
-
         }
 
+        const normalize = (value) => {
 
-        // ==========================================
-        // FIND ONLY EXACT MAIN-NAME MATCHES
-        // ==========================================
+            return String(value || "")
+                .toLowerCase()
+                .trim()
+                .replace(/[^\p{L}\p{N}]+/gu, "");
+
+        };
+
+        const typedName =
+            normalize(mainName);
+
+
 
         const exactResults =
             data.filter(item => {
 
                 const address =
                     item.address || {};
-
-
+ 
+                    
                 const possibleNames = [
 
-                    item.name,
-                    ...Object.values(item.namedetails || {}),
-                    address.city,
+                   item.name,
 
-                    address.town,
-
-                    address.village,
-
-                    address.hamlet,
-
-                    address.municipality,
-
-                    address.suburb,
-
-                    address.state,
-
-                    address.province,
-
-                    address.region,
-
-                    address.country
+                   address.city,
+                   address.town,
+                   address.village,
+                   address.hamlet,
+                   address.municipality
 
                 ]
-                    .filter(Boolean)
-                    .map(name =>
-                        name
-                            .toLowerCase()
-                            .trim()
-                    );
+                .filter(Boolean)
+                .map(normalize);
 
-
-                return possibleNames.some(
-                    name =>
-                        name ===
-                        cleanMainName
+                return possibleNames.includes(
+                    typedName
                 );
 
             });
 
 
-        if (
-            exactResults.length === 0
-        ) {
-
+        if (exactResults.length === 0) {
             return null;
 
         }
 
 
-        // ==========================================
-        // CHECK STATE / COUNTRY CONTEXT
-        // ==========================================
-
+        
         const contextResults =
             exactResults.filter(item => {
 
+                if (parts.length <= 1) {
+                    return true;
+                }
+
                 const address =
                     item.address || {};
+                
+                const searchableText = [
 
+                     item.name,
+                     address.city,
+                     address.town,
+                     address.village,
+                     address.hamlet,
+                     address.municipality,
+                     address.suburb
 
-                const searchableText =
-                    [
+                    ]    
+                    .filter(Boolean)
+                    .map(normalize);
 
-                        item.name,
+                return parts.every(part => {
 
-                        item.display_name,
+                    const normalizedPart =
+                        normalize(part);
 
-                        address.city,
-
-                        address.town,
-
-                        address.village,
-
-                        address.hamlet,
-
-                        address.municipality,
-
-                        address.suburb,
-
-                        address.state,
-
-                        address.province,
-
-                        address.region,
-
-                        address.state_district,
-
-                        address.country
-
-                    ]
-                        .filter(Boolean)
-                        .join(" ")
-                        .toLowerCase();
-
-
-                return parts.every(
-                    part => {
-
-                        const cleanPart =
-                            part
-                                .toLowerCase()
-                                .trim();
-
-                        return (
-                            cleanPart &&
-                            searchableText.includes(
-                                cleanPart
+                    return searchableText.some(
+                        value =>
+                            value.includes(
+                                normalizedPart
                             )
-                        );
+                    );
 
-                    }
-                );
+                });
 
             });
 
@@ -2054,57 +2407,92 @@ async function searchNominatim(searchText) {
         const candidates =
             contextResults.length > 0
                 ? contextResults
-                : (
-                    parts.length === 1
-                        ? exactResults
-                        : []
-                );
+                : parts.length === 1
+                    ? exactResults
+                    : [];
 
 
-        if (
-            candidates.length === 0
-        ) {
-
+        if (candidates.length === 0) {
             return null;
-
         }
 
 
-        // ==========================================
-        // RANK EXACT RESULTS
-        // ==========================================
+        candidates.sort((a, b) => {
 
-        candidates.sort(
-            (a, b) => {
+            const getPriority = (item) => {
 
-                const aAddress =
-                    a.address || {};
+                const type =
+                    String(
+                        item.type || ""
+                    ).toLowerCase();
 
-                const bAddress =
-                    b.address || {};
+                const address =
+                    item.address || {};
 
+                if (
+                    address.city &&
+                    normalize(address.city) === typedName
+                ) {
+                    return 500;
+                }
 
-                const aScore =
-                    getNominatimTypePriority(
-                        a,
-                        aAddress
-                    );
+                if (
+                    address.town &&
+                    normalize(address.town) === typedName
+                ) {
+                    return 450;
+                }
 
+                if (
+                    address.village &&
+                    normalize(address.village) === typedName
+                ) {
+                    return 400;
+                }
 
-                const bScore =
-                    getNominatimTypePriority(
-                        b,
-                        bAddress
-                    );
+                if (
+                    address.hamlet &&
+                    normalize(address.hamlet) === typedName
+                ) {
+                    return 350;
+                }
 
+                if (
+                    address.state &&
+                    normalize(address.state) === typedName
+                ) {
+                    return 300;
+                }
 
-                return (
-                    bScore -
-                    aScore
-                );
+                if (
+                    address.country &&
+                    normalize(address.country) === typedName
+                ) {
+                    return 250;
+                }
 
-            }
-        );
+                if (type === "city") {
+                    return 200;
+                }
+
+                if (type === "town") {
+                    return 180;
+                }
+
+                if (type === "village") {
+                    return 160;
+                }
+
+                return 100;
+
+            };
+
+            return (
+                getPriority(b) -
+                getPriority(a)
+            );
+
+        });
 
 
         const result =
@@ -2115,58 +2503,37 @@ async function searchNominatim(searchText) {
             result.address || {};
 
 
-        // ==========================================
-        // PLACE NAME
-        // ==========================================
-
-        let placeName =
-            "";
-
+        let placeName = "";
 
         if (
-            cleanMainName ===
-            (
-                address.country ||
-                ""
-            ).toLowerCase().trim()
+            normalize(address.country) ===
+            typedName
         ) {
 
             placeName =
                 address.country;
 
         } else if (
-            cleanMainName ===
-            (
-                address.state ||
-                ""
-            ).toLowerCase().trim()
+            normalize(address.state) ===
+            typedName
         ) {
 
             placeName =
                 address.state;
 
-        } else if (
-            cleanMainName ===
-            (
-                address.province ||
-                ""
-            ).toLowerCase().trim()
-        ) {
 
-            placeName =
-                address.province;
 
         } else {
 
-            placeName =
-                address.city ||
-                address.town ||
-                address.village ||
-                address.municipality ||
-                address.hamlet ||
-                address.suburb ||
-                itemNameFromResult(result);
-
+           placeName =
+               address.village ||
+               address.hamlet ||
+               address.suburb ||
+               address.town ||
+               address.city ||
+               address.municipality ||
+               result.name ||
+               mainName;
         }
 
 
@@ -2175,10 +2542,7 @@ async function searchNominatim(searchText) {
         }
 
 
-        // ==========================================
-        // STATE
-        // ==========================================
-
+        
         const stateName =
             address.state ||
             address.province ||
@@ -2187,9 +2551,7 @@ async function searchNominatim(searchText) {
             "";
 
 
-        // ==========================================
-        // COUNTRY
-        // ==========================================
+
 
         const countryName =
             address.country ||
@@ -2197,14 +2559,10 @@ async function searchNominatim(searchText) {
 
 
         const latitude =
-            parseFloat(
-                result.lat
-            );
+            parseFloat(result.lat);
 
         const longitude =
-            parseFloat(
-                result.lon
-            );
+            parseFloat(result.lon);
 
 
         if (
@@ -2215,6 +2573,7 @@ async function searchNominatim(searchText) {
             return null;
 
         }
+
 
         return {
 
@@ -2417,18 +2776,31 @@ function itemNameFromResult(result) {
 
 function logout() {
 
-    localStorage.removeItem(
-        "token"
-    );
+    localStorage.removeItem("token");
 
-    localStorage.removeItem(
-        "user"
-    );
+    localStorage.removeItem("user");
 
-    window.location.href =
-        "login.html";
+    window.location.href = "login.html";
 
 }
+
+// ==========================================
+// LOGOUT BUTTON
+// ==========================================
+
+const logoutBtn =
+    document.getElementById("logoutBtn");
+
+if (logoutBtn) {
+
+    logoutBtn.addEventListener(
+        "click",
+        logout
+    );
+
+}
+
+
 
 // ==========================================
 // ENABLE / DISABLE WEATHER NOTIFICATIONS
@@ -2861,4 +3233,4 @@ checkMyWeatherAlert();
 setInterval(
     checkMyWeatherAlert,
     10 * 60 * 1000
-);
+); 

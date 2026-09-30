@@ -525,3 +525,22 @@ button:hover {
     }
 
 }
+.expected-rain {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap !important;
+    width: max-content !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    font-size: 12px;
+    gap: 3px;
+}
+
+.expected-rain strong {
+    display: inline !important;
+    width: auto !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    font-size: 12px;
+}

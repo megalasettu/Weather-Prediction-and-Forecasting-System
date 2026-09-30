@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Weather Prediction and Forecasting System</title>
-
+   
     <style>
         * {
             box-sizing: border-box;
@@ -645,6 +645,54 @@
                grid-template-columns: 1fr;
             }
         }
+/* ================================
+   SMART WEATHER RECOMMENDATION
+   ================================ */
+
+.smart-recommendation {
+    margin: 25px 0;
+    padding: 22px 25px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    text-align: left;
+}
+
+.smart-recommendation h3 {
+    margin: 0 0 15px 0;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.smart-recommendation p {
+    margin: 8px 0;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.recommendation-tip {
+    font-weight: 600;
+    margin-top: 15px !important;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .smart-recommendation {
+        padding: 18px;
+        margin: 20px 0;
+    }
+
+    .smart-recommendation h3 {
+        font-size: 17px;
+    }
+
+    .smart-recommendation p {
+        font-size: 14px;
+    }
+}
     </style>
     <script>
     if (!localStorage.getItem("token")) {
@@ -705,12 +753,7 @@
     </button>
 
 
-    <button 
-        onclick="logout()">
-
-        🚪 Logout
-
-    </button>
+  <button id="logoutBtn">🚪 Logout</button>
 
 </div>
     
@@ -718,19 +761,28 @@
         <!-- CURRENT WEATHER -->
 
         <div id="weatherResult">
+    <!-- Weather result will appear here -->
+</div>
 
-            <!-- Weather result will appear here -->
+<!-- SMART WEATHER RECOMMENDATION -->
+<div class="smart-recommendation" id="smartRecommendation" style="display: none;">
+    <h3>💡 SMART WEATHER RECOMMENDATION</h3>
 
-        </div>
+    <p id="recommendationMessage">
+        ☀️ Weather looks good today.<br>
+        Suitable for outdoor activities.
+    </p>
 
+    <p class="recommendation-tip" id="recommendationTip">
+        🎒 Tip: Carry water when going outside.
+    </p>
+</div>
 
-        <!-- 10 DAY FORECAST -->
+<!-- 10 DAY FORECAST -->
 
-        <div id="forecast">
-
-            <!-- Forecast will appear here -->
-
-        </div>
+<div id="forecast">
+    <!-- Forecast will appear here -->
+</div>
 
     </div>
 
