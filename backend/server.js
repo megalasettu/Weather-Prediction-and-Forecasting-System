@@ -141,6 +141,247 @@ const UserLocation = mongoose.model(
 );
 
 // ==========================================
+// SAVED LOCATIONS SCHEMA
+// ==========================================
+
+const savedLocationSchema = new mongoose.Schema({
+
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+    },
+
+    name: {
+        type: String,
+        required: true
+    },
+
+    state: {
+        type: String,
+        default: ""
+    },
+
+    country: {
+        type: String,
+        default: ""
+    },
+
+    latitude: {
+        type: Number,
+        required: true
+    },
+
+    longitude: {
+        type: Number,
+        required: true
+    },
+
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+
+});
+
+const SavedLocation = mongoose.model(
+    "SavedLocation",
+    savedLocationSchema
+);
+
+// ==========================================
+// SAVE LOCATION
+// ==========================================
+
+app.post(
+    "/api/saved-locations",
+    authenticateToken,
+    async (req, res) => {
+
+        try {
+
+            const {
+                name,
+                state,
+                country,
+                latitude,
+                longitude
+            } = req.body;
+
+            if (
+                !name ||
+                latitude === undefined ||
+                longitude === undefined
+            ) {
+
+                return res.status(400).json({
+                    error: "Location details are required"
+                });
+
+            }
+
+            // Prevent duplicate saved location
+            const existingLocation =
+                await SavedLocation.findOne({
+                    userId: req.user.userId,
+                    name: name
+                });
+
+            if (existingLocation) {
+
+                return res.status(400).json({
+                    error: "Location already saved"
+                });
+
+            }
+
+            const savedLocation =
+                new SavedLocation({
+
+                    userId: req.user.userId,
+
+                    name,
+                    state,
+                    country,
+
+                    latitude,
+                    longitude
+
+                });
+
+            await savedLocation.save();
+
+            res.json({
+
+                message:
+                    "Location saved successfully",
+
+                location:
+                    savedLocation
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Save location error:",
+                error
+            );
+
+            res.status(500).json({
+
+                error:
+                    "Unable to save location"
+
+            });
+
+        }
+
+    }
+);
+
+// ==========================================
+// DELETE SAVED LOCATION
+// ==========================================
+
+app.delete(
+    "/api/saved-locations/:id",
+    authenticateToken,
+    async (req, res) => {
+
+        try {
+
+            const deletedLocation =
+                await SavedLocation.findOneAndDelete({
+                    _id: req.params.id,
+                    userId: req.user.userId
+                });
+
+            if (!deletedLocation) {
+
+                return res.status(404).json({
+                    error: "Saved location not found"
+                });
+
+            }
+
+            res.json({
+
+                message:
+                    "Saved location deleted successfully"
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Delete saved location error:",
+                error
+            );
+
+            res.status(500).json({
+
+                error:
+                    "Unable to delete saved location"
+
+            });
+
+        }
+
+    }
+);
+
+// ==========================================
+// GET SAVED LOCATIONS
+// ==========================================
+
+app.get(
+    "/api/saved-locations",
+    authenticateToken,
+    async (req, res) => {
+
+        try {
+
+            const locations =
+                await SavedLocation.find({
+
+                    userId:
+                        req.user.userId
+
+                }).sort({
+
+                    createdAt:
+                        -1
+
+                });
+
+            res.json({
+
+                locations:
+                    locations
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Get saved locations error:",
+                error
+            );
+
+            res.status(500).json({
+
+                error:
+                    "Unable to load saved locations"
+
+            });
+
+        }
+
+    }
+);
+
+// ==========================================
 // WEB PUSH SUBSCRIPTION SCHEMA
 // ==========================================
 
@@ -797,6 +1038,7 @@ app.get(
     }
 );
 
+
 // ==========================================
 // WEATHER ALERT CHECK
 // ==========================================
@@ -805,15 +1047,15 @@ async function checkWeatherAlerts() {
 
     try {
 
-        const userLocations =
-            await UserLocation.find();
+        const savedLocations =
+            await SavedLocation.find();
 
         if (
-            userLocations.length === 0
+            savedLocations.length === 0
         ) {
 
             console.log(
-                "No user locations available for alert checking."
+                "No saved locations available for alert checking."
             );
 
             return;
@@ -821,25 +1063,28 @@ async function checkWeatherAlerts() {
         }
 
         console.log(
-            `Checking weather alerts for ${userLocations.length} user(s)...`
+            `Checking weather alerts for ${savedLocations.length} saved location(s)...`
         );
 
         // ==========================================
-        // CHECK EACH USER
+        // CHECK EACH SAVED LOCATION
         // ==========================================
 
         for (
-            const userLocation
-            of userLocations
+            const savedLocation
+            of savedLocations
         ) {
 
             try {
 
                 const latitude =
-                    userLocation.latitude;
+                    savedLocation.latitude;
 
                 const longitude =
-                    userLocation.longitude;
+                    savedLocation.longitude;
+
+                const locationName =
+                    savedLocation.name;
 
                 // ==========================================
                 // GET USER
@@ -847,14 +1092,14 @@ async function checkWeatherAlerts() {
 
                 const user =
                     await User.findById(
-                        userLocation.userId
+                        savedLocation.userId
                     );
 
                 if (!user) {
 
                     console.log(
                         "User not found:",
-                        userLocation.userId
+                        savedLocation.userId
                     );
 
                     continue;
@@ -870,7 +1115,7 @@ async function checkWeatherAlerts() {
                 ) {
 
                     console.log(
-                        `Notifications disabled for user ${userLocation.userId}`
+                        `Notifications disabled for user ${savedLocation.userId}`
                     );
 
                     continue;
@@ -892,11 +1137,8 @@ async function checkWeatherAlerts() {
                 if (!response.ok) {
 
                     console.error(
-
-                        "Weather alert API request failed for user:",
-
-                        userLocation.userId
-
+                        "Weather alert API request failed for saved location:",
+                        locationName
                     );
 
                     continue;
@@ -962,7 +1204,7 @@ async function checkWeatherAlerts() {
                             "Heavy Rain",
 
                         message:
-                            "Heavy rain is expected at your current location."
+                            `🌧️ Heavy rain is expected in ${locationName}.`
 
                     });
 
@@ -986,7 +1228,7 @@ async function checkWeatherAlerts() {
                             "Thunderstorm",
 
                         message:
-                            "Thunderstorm detected at your current location."
+                            `⛈️ Thunderstorm is expected in ${locationName}.`
 
                     });
 
@@ -1006,7 +1248,7 @@ async function checkWeatherAlerts() {
                             "Strong Wind",
 
                         message:
-                            "Strong wind conditions detected at your current location."
+                            `💨 Strong winds are expected in ${locationName}.`
 
                     });
 
@@ -1026,7 +1268,7 @@ async function checkWeatherAlerts() {
                             "Extreme Temperature",
 
                         message:
-                            "Very high temperature detected at your current location."
+                            `☀️ High temperature in ${locationName}.`
 
                     });
 
@@ -1042,7 +1284,7 @@ async function checkWeatherAlerts() {
                             "Extreme Temperature",
 
                         message:
-                            "Very low temperature detected at your current location."
+                            `🥶 Very low temperature in ${locationName}.`
 
                     });
 
@@ -1066,7 +1308,12 @@ async function checkWeatherAlerts() {
 
                     console.log(
                         "User ID:",
-                        userLocation.userId
+                        savedLocation.userId
+                    );
+
+                    console.log(
+                        "Saved Location:",
+                        locationName
                     );
 
                     console.log(
@@ -1122,7 +1369,7 @@ async function checkWeatherAlerts() {
                         await PushSubscription.findOne({
 
                             userId:
-                                userLocation.userId
+                                savedLocation.userId
 
                         });
 
@@ -1158,11 +1405,8 @@ async function checkWeatherAlerts() {
                                 );
 
                                 console.log(
-
-                                    "Push notification sent to user:",
-
-                                    userLocation.userId
-
+                                    "Push notification sent for:",
+                                    locationName
                                 );
 
                             } catch (
@@ -1192,16 +1436,14 @@ async function checkWeatherAlerts() {
                                     await PushSubscription.deleteOne({
 
                                         userId:
-                                            userLocation.userId
+                                            savedLocation.userId
 
                                     });
 
                                     console.log(
 
                                         "Invalid push subscription removed for user:",
-
-                                        userLocation.userId
-
+                                        savedLocation.userId
                                     );
 
                                 }
@@ -1215,9 +1457,8 @@ async function checkWeatherAlerts() {
                         console.log(
 
                             "No push subscription found for user:",
-
-                            userLocation.userId
-
+                            savedLocation.userId
+                       
                         );
 
                     }
@@ -1225,23 +1466,17 @@ async function checkWeatherAlerts() {
                 } else {
 
                     console.log(
-
-                        `No severe weather alert for user ${userLocation.userId}`
-
+                        `No severe weather alert for saved location: ${locationName}`
                     );
 
                 }
 
-            } catch (userError) {
+            } catch (locationError) {
 
                 console.error(
-
-                    "Weather alert check error for user:",
-
-                    userLocation.userId,
-
-                    userError
-
+                    "Weather alert check error for saved location:",
+                    savedLocation.name,
+                    locationError
                 );
 
             }
@@ -1311,11 +1546,12 @@ app.get(
 );
 
 // ==========================================
-// REAL USER WEATHER ALERT API
+// REAL SAVED LOCATION WEATHER ALERT API
 // ==========================================
 // This checks ONLY the logged-in user's
-// current location.
-// Search history is NOT used for alerts.
+// saved locations.
+// Search history and current location
+// are NOT used for alerts.
 
 app.get(
     "/api/current-alert",
@@ -1324,230 +1560,237 @@ app.get(
 
         try {
 
-            const userLocation =
-                await UserLocation.findOne({
-
+            const savedLocations =
+                await SavedLocation.find({
                     userId:
                         req.user.userId
-
+                        
                 });
 
-            if (!userLocation) {
+            if (
+                savedLocations.length === 0
+            ) {
 
                 return res.json({
 
                     alert: false,
 
+                    alerts: [],
+
                     message:
-                        "Current location is not available."
+                        "No saved locations available."
 
                 });
 
             }
 
-            const latitude =
-                userLocation.latitude;
-
-            const longitude =
-                userLocation.longitude;
-
-            const weatherURL =
-                `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,precipitation,rain&timezone=auto`;
-
-            const response =
-                await fetch(
-                    weatherURL
-                );
-
-            if (!response.ok) {
-
-                return res.status(500).json({
-
-                    alert: false,
-
-                    error:
-                        "Unable to fetch current weather."
-
-                });
-
-            }
-
-            const weatherData =
-                await response.json();
-
-            if (!weatherData.current) {
-
-                return res.json({
-
-                    alert: false
-
-                });
-
-            }
-
-            const current =
-                weatherData.current;
-
-            const temperature =
-                current.temperature_2m;
-
-            const windSpeed =
-                current.wind_speed_10m;
-
-            const weatherCode =
-                current.weather_code;
-
-            const precipitation =
-                current.precipitation || 0;
-
-            const rain =
-                current.rain || 0;
-
-            const alerts = [];
+            const allAlerts = [];
 
             // ==========================================
-            // 1. HEAVY RAIN
+            // CHECK EACH SAVED LOCATION
             // ==========================================
 
-            if (
-
-                precipitation >= 10 ||
-
-                rain >= 10 ||
-
-                weatherCode === 65 ||
-
-                weatherCode === 67 ||
-
-                weatherCode === 82
-
+            for (
+                const savedLocation
+                of savedLocations
             ) {
 
-                alerts.push({
+                try {
 
-                    type:
-                        "Heavy Rain",
+                    const latitude =
+                        savedLocation.latitude;
 
-                    message:
-                        "Heavy rain is expected at your current location."
+                    const longitude =
+                        savedLocation.longitude;
 
-                });
+                    const locationName =
+                        savedLocation.name;
+
+                    const weatherURL =
+                        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,precipitation,rain&timezone=auto`;
+
+                    const response =
+                        await fetch(
+                            weatherURL
+                        );
+
+                    if (!response.ok) {
+                        continue;
+                    }
+
+                    const weatherData =
+                        await response.json();
+
+                    if (
+                        !weatherData.current
+                    ) {
+                        continue;
+                    }
+
+                    const current =
+                        weatherData.current;
+
+                    const temperature =
+                        current.temperature_2m;
+
+                    const windSpeed =
+                        current.wind_speed_10m;
+
+                    const weatherCode =
+                        current.weather_code;
+
+                    const precipitation =
+                        current.precipitation || 0;
+
+                    const rain =
+                        current.rain || 0;
+
+                    // ==========================================
+                    // ALERTS FOR THIS SAVED LOCATION
+                    // ==========================================
+
+                    // 1. HEAVY RAIN
+
+                    if (
+                        precipitation >= 10 ||
+                        rain >= 10 ||
+                        weatherCode === 65 ||
+                        weatherCode === 67 ||
+                        weatherCode === 82
+                    ) {
+
+                        allAlerts.push({
+
+                            type:
+                                "Heavy Rain",
+
+                            location:
+                                locationName,
+
+                            message:
+                                `🌧️ Heavy rain is expected in ${locationName}.`
+
+                        });
+
+                    }
+
+                    // 2. THUNDERSTORM
+
+                    if (
+                        weatherCode >= 95 &&
+                        weatherCode <= 99
+                    ) {
+
+                        allAlerts.push({
+
+                            type:
+                                "Thunderstorm",
+
+                            location:
+                                locationName,
+
+                            message:
+                                `⛈️ Thunderstorm is expected in ${locationName}.`
+
+                        });
+
+                    }
+
+                    // 3. STRONG WIND
+
+                    if (
+                        windSpeed >= 40
+                    ) {
+
+                        allAlerts.push({
+
+                            type:
+                                "Strong Wind",
+
+                            location:
+                                locationName,
+
+                            message:
+                                `💨 Strong winds are expected in ${locationName}.`
+
+                        });
+
+                    }
+
+                    // 4. HIGH TEMPERATURE
+
+                    if (
+                        temperature >= 40
+                    ) {
+
+                        allAlerts.push({
+
+                            type:
+                                "Extreme Temperature",
+
+                            location:
+                                locationName,
+
+                            message:
+                                `☀️ High temperature in ${locationName}.`
+
+                        });
+
+                    }
+
+                    // 5. LOW TEMPERATURE
+
+                    if (
+                        temperature <= 10
+                    ) {
+
+                        allAlerts.push({
+
+                            type:
+                                "Extreme Temperature",
+
+                            location:
+                                locationName,
+
+                            message:
+                                `🥶 Very low temperature in ${locationName}.`
+
+                        });
+
+                    }
+
+                } catch (
+                    locationError
+                ) {
+
+                    console.error(
+                        "Saved location alert error:",
+                        savedLocation.name,
+                        locationError
+                    );
+
+                }
 
             }
 
             // ==========================================
-            // 2. THUNDERSTORM
-            // ==========================================
-
-            if (
-
-                weatherCode >= 95 &&
-
-                weatherCode <= 99
-
-            ) {
-
-                alerts.push({
-
-                    type:
-                        "Thunderstorm",
-
-                    message:
-                        "Thunderstorm detected at your current location."
-
-                });
-
-            }
-
-            // ==========================================
-            // 3. STRONG WIND
-            // ==========================================
-
-            if (
-                windSpeed >= 40
-            ) {
-
-                alerts.push({
-
-                    type:
-                        "Strong Wind",
-
-                    message:
-                        "Strong wind conditions detected at your current location."
-
-                });
-
-            }
-
-            // ==========================================
-            // 4. EXTREME TEMPERATURE
-            // ==========================================
-
-            if (
-                temperature >= 40
-            ) {
-
-                alerts.push({
-
-                    type:
-                        "Extreme Temperature",
-
-                    message:
-                        "Very high temperature detected at your current location."
-
-                });
-
-            }
-
-            if (
-                temperature <= 10
-            ) {
-
-                alerts.push({
-
-                    type:
-                        "Extreme Temperature",
-
-                    message:
-                        "Very low temperature detected at your current location."
-
-                });
-
-            }
-
-            // ==========================================
-            // SEND ALERT RESULT
+            // SEND RESULT
             // ==========================================
 
             res.json({
 
                 alert:
-                    alerts.length > 0,
+                    allAlerts.length > 0,
 
                 alerts:
-                    alerts,
-
-                latitude:
-                    latitude,
-
-                longitude:
-                    longitude,
-
-                temperature:
-                    temperature,
-
-                windSpeed:
-                    windSpeed,
-
-                weatherCode:
-                    weatherCode
+                    allAlerts
 
             });
 
         } catch (error) {
 
             console.error(
-                "Current alert API error:",
+                "Saved location alert API error:",
                 error
             );
 
@@ -1555,8 +1798,10 @@ app.get(
 
                 alert: false,
 
+                alerts: [],
+
                 error:
-                    "Unable to check current weather alert"
+                    "Unable to check saved location weather alerts"
 
             });
 
