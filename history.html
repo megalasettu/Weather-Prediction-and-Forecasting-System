@@ -403,9 +403,13 @@
                         "history-card";
 
                     const date =
-                        new Date(
-                            item.searchedAt
-                        ).toLocaleString();
+                      new Date(
+                        item.searchedAt
+                      ).toLocaleString("en-IN", {
+                        timeZone: "Asia/Kolkata",
+                        dateStyle: "short",
+                        timeStyle: "medium"
+                     });
 
                     card.innerHTML = `
 

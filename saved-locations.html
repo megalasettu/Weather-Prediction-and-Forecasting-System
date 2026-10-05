@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Saved Locations</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+
+            margin: 0;
+
+            min-height: 100vh;
+
+            padding: 45px 25px;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background:
+                url("weather-bg.png")
+                center / cover
+                fixed;
+
+            color: #111;
+
+        }
+
+        .container {
+
+            width: 100%;
+
+            max-width: 1150px;
+
+            margin: auto;
+
+            text-align: center;
+
+        }
+
+        h1 {
+
+            margin: 0;
+
+            color: white;
+
+            font-size: 38px;
+
+            text-shadow:
+                0 2px 6px
+                rgba(0, 0, 0, 0.35);
+
+        }
+
+        .subtitle {
+
+            margin-top: 10px;
+
+            margin-bottom: 25px;
+
+            color: white;
+
+            font-size: 18px;
+
+        }
+
+        .top-actions {
+
+            display: flex;
+
+            justify-content: center;
+
+            margin-bottom: 25px;
+
+        }
+
+        button,
+        .back-btn {
+
+            border: none;
+
+            border-radius: 12px;
+
+            padding: 13px 25px;
+
+            background: #48ace8;
+
+            color: white;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+            text-decoration: none;
+
+            box-shadow:
+                0 4px 10px
+                rgba(0, 0, 0, 0.15);
+
+            transition:
+                background 0.2s ease,
+                transform 0.2s ease;
+
+        }
+
+        button:hover,
+        .back-btn:hover {
+
+            background: #168bd1;
+
+            transform:
+                translateY(-2px);
+
+        }
+
+        #message {
+
+            color: white;
+
+            font-size: 18px;
+
+            margin: 25px 0;
+
+        }
+
+        .saved-container {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+
+            gap: 22px;
+
+            margin-top: 20px;
+
+        }
+
+        .saved-card {
+
+            background:
+                rgba(255, 255, 255, 0.94);
+
+            border-radius: 18px;
+
+            padding: 25px;
+
+            text-align: left;
+
+            box-shadow:
+                0 8px 25px
+                rgba(0, 0, 0, 0.18);
+
+            transition:
+                transform 0.2s ease;
+
+        }
+
+        .saved-card:hover {
+
+            transform:
+                translateY(-4px);
+
+        }
+
+        .saved-card h2 {
+
+            margin-top: 0;
+
+            color: #123d6b;
+
+            font-size: 23px;
+
+        }
+
+        .saved-card p {
+
+            margin: 10px 0;
+
+            font-size: 16px;
+
+        }
+
+        .delete-btn {
+
+            margin-top: 12px;
+
+            background: #48ace8;
+
+        }
+
+        .delete-btn:hover {
+
+            background: #168bd1;
+
+        }
+
+        .back-btn {
+
+            display: inline-block;
+
+            margin-top: 30px;
+
+        }
+
+        @media (max-width: 1000px) {
+
+            .saved-container {
+
+                grid-template-columns:
+                    repeat(
+                        2,
+                        minmax(0, 1fr)
+                    );
+
+            }
+
+        }
+
+        @media (max-width: 650px) {
+
+            body {
+
+                padding:
+                    30px 15px;
+
+            }
+
+            h1 {
+
+                font-size: 29px;
+
+            }
+
+            .saved-container {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+    <div class="container">
+
+        <h1>
+            📍 Saved Locations
+        </h1>
+
+        <div class="subtitle">
+            View your saved weather locations
+        </div>
+
+
+        <div id="message">
+            Loading saved locations...
+        </div>
+
+
+        <div
+            class="saved-container"
+            id="savedLocationsContainer">
+        </div>
+
+
+        <a
+            href="index.html"
+            class="back-btn">
+
+            ← Back to Weather
+
+        </a>
+
+    </div>
+
+
+    <script>
+
+        // ==========================================
+        // LOAD SAVED LOCATIONS
+        // ==========================================
+
+        async function loadSavedLocations() {
+
+            const container =
+                document.getElementById(
+                    "savedLocationsContainer"
+                );
+
+            const message =
+                document.getElementById(
+                    "message"
+                );
+
+            const token =
+                localStorage.getItem(
+                    "token"
+                );
+
+
+            if (!token) {
+
+                message.textContent =
+                    "Please login to view your saved locations.";
+
+                return;
+
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                      "http://localhost:3000/api/saved-locations",
+                        {
+                            method: "GET",
+
+                            headers: {
+                                "Authorization":
+                                    "Bearer " + token
+                            }
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    message.textContent =
+                        "Unable to load saved locations.";
+
+                    return;
+
+                }
+
+
+                const locations =
+                    data.locations || [];
+
+
+                if (
+                    locations.length === 0
+                ) {
+
+                    message.textContent =
+                        "No saved locations found.";
+
+                    return;
+
+                }
+
+
+                message.textContent = "";
+
+
+                locations.forEach(
+                    function (location) {
+
+                        const card =
+                            document.createElement(
+                                "div"
+                            );
+
+
+                        card.className =
+                            "saved-card";
+
+
+                        card.innerHTML = `
+
+                            <h2>
+                                📍 ${location.name}
+                            </h2>
+
+                            <p>
+                                📌 <b>State:</b>
+                                ${location.state || "N/A"}
+                            </p>
+
+                            <p>
+                                🌍 <b>Country:</b>
+                                ${location.country || "N/A"}
+                            </p>
+
+                            <button
+                                class="delete-btn"
+                                onclick="deleteSavedLocation('${location._id}')">
+
+                                🗑️ Delete
+
+                            </button>
+
+                        `;
+
+
+                        container.appendChild(
+                            card
+                        );
+
+                    }
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Saved locations error:",
+                    error
+                );
+
+                message.textContent =
+                    "Unable to load saved locations.";
+
+            }
+
+        }
+
+
+        // ==========================================
+        // DELETE SAVED LOCATION
+        // ==========================================
+
+        async function deleteSavedLocation(
+            locationId
+        ) {
+
+            const token =
+                localStorage.getItem(
+                    "token"
+                );
+
+
+            if (!token) {
+
+                window.location.href =
+                    "login.html";
+
+                return;
+
+            }
+
+
+            const confirmDelete =
+                confirm(
+                    "Are you sure you want to delete this saved location?"
+                );
+
+
+            if (!confirmDelete) {
+
+                return;
+
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                     "http://localhost:3000/api/saved-locations/"
+                      + locationId,
+                        {
+                            method: "DELETE",
+
+                            headers: {
+                                "Authorization":
+                                    "Bearer " + token
+                            }
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    alert(
+                        data.error ||
+                        "Unable to delete saved location."
+                    );
+
+                    return;
+
+                }
+
+
+                alert(
+                    "Saved location deleted successfully!"
+                );
+
+
+               window.location.reload();
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Delete saved location error:",
+                    error
+                );
+
+                alert(
+                    "Unable to delete saved location."
+                );
+
+            }
+
+        }
+
+
+        // ==========================================
+        // START
+        // ==========================================
+
+        loadSavedLocations();
+
+    </script>
+
+</body>
+
+</html>

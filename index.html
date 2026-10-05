@@ -693,6 +693,30 @@
         font-size: 14px;
     }
 }
+
+.heart-save-btn {
+    padding: 0;
+    margin-left: 8px;
+    border: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #555;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.heart-save-btn:hover {
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: scale(1.1);
+}
+
+.heart-save-btn.saved {
+    color: red;
+}
+
     </style>
     <script>
     if (!localStorage.getItem("token")) {
@@ -734,30 +758,37 @@
 
         </div>
 
+    <!-- ACTION BUTTONS -->
 
-        <!-- ACTION BUTTONS -->
 <div class="action-buttons">
 
-    <button 
+    <button
         onclick="window.location.href='history.html'">
 
         📋 Search History
-
     </button>
 
+    <button
+        type="button"
+        onclick="window.location.href='saved-locations.html'">
+        📍 Saved Locations
+    </button>
 
-    <button id="notificationBtn" type="button">
-
+    <button
+        id="notificationBtn"
+        type="button">
         🔔 Enable Weather Notifications
 
     </button>
 
-
-  <button id="logoutBtn">🚪 Logout</button>
+    <button
+        id="logoutBtn">
+        🚪 Logout
+    </button>
 
 </div>
     
-
+  
         <!-- CURRENT WEATHER -->
 
         <div id="weatherResult">

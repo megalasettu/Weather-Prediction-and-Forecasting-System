@@ -45,7 +45,7 @@ async function subscribeToPush() {
             await navigator.serviceWorker.ready;
 
         const response = await fetch(
-            "https://weather-prediction-and-forecasting-system.onrender.com/api/vapid-public-key",
+         "http://localhost:3000/api/vapid-public-key"
         );
 
         const data =
@@ -68,7 +68,7 @@ async function subscribeToPush() {
             localStorage.getItem("token");
 
         await fetch(
-            "https://weather-prediction-and-forecasting-system.onrender.com/api/push-subscription",
+           "http://localhost:3000/api/push-subscription",
             {
                 method: "POST",
 
@@ -145,6 +145,343 @@ searchBtn.addEventListener(
     getWeather
 );
 
+// ==========================================
+// SAVE SEARCHED LOCATION
+// ==========================================
+let searchedLocation = null;
+
+async function saveSearchedLocation() {
+
+    if (!searchedLocation) {
+        alert("Please search for a location first.");
+        return;
+    }
+
+    const token =
+        localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please login again.");
+        return;
+    }
+
+    const heart =
+        document.getElementById("saveHeartBtn");
+
+    try {
+
+        // ==========================================
+        // CHECK WHETHER LOCATION IS ALREADY SAVED
+        // ==========================================
+
+        const savedResponse =
+            await fetch(
+                "http://localhost:3000/api/saved-locations",
+                {
+                    headers: {
+                        "Authorization":
+                            "Bearer " + token
+                    }
+                }
+            );
+
+        const savedData =
+            await savedResponse.json();
+
+        const savedLocations =
+            savedData.locations || [];
+
+        const existingLocation =
+            savedLocations.find(location =>
+                Math.abs(
+                    Number(location.latitude) -
+                    Number(searchedLocation.latitude)
+                ) < 0.0001 &&
+                Math.abs(
+                    Number(location.longitude) -
+                    Number(searchedLocation.longitude)
+                ) < 0.0001
+            );
+
+
+        // ==========================================
+        // UNSAVE
+        // ==========================================
+
+        if (existingLocation) {
+
+            const deleteResponse =
+                await fetch(
+                    "http://localhost:3000/api/saved-locations/" +
+                    existingLocation._id,
+                    {
+                        method: "DELETE",
+
+                        headers: {
+                            "Authorization":
+                                "Bearer " + token
+                        }
+                    }
+                );
+
+            if (deleteResponse.ok) {
+
+                if (heart) {
+                    heart.innerHTML = "♡";
+                    heart.classList.remove("saved");
+                }
+
+                alert(
+                    "📍 Location removed from saved locations."
+                );
+
+            } else {
+
+                alert(
+                    "Unable to remove saved location."
+                );
+
+            }
+
+            return;
+        }
+
+
+        // ==========================================
+        // SAVE
+        // ==========================================
+
+        const response =
+            await fetch(
+                "http://localhost:3000/api/saved-locations",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            "Bearer " + token
+                    },
+
+                    body: JSON.stringify({
+
+                        name:
+                            searchedLocation.name,
+
+                        state:
+                            searchedLocation.state || "",
+
+                        country:
+                            searchedLocation.country || "",
+
+                        latitude:
+                            searchedLocation.latitude,
+
+                        longitude:
+                            searchedLocation.longitude
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (response.ok) {
+
+            if (heart) {
+                heart.innerHTML = "♥";
+                heart.classList.add("saved");
+            }
+
+            alert(
+                "📍 Location saved successfully."
+            );
+
+        } else {
+
+            alert(
+                data.error ||
+                "Unable to save location."
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Save/Unsave location error:",
+            error
+        );
+
+        alert(
+            "Unable to update saved location."
+        );
+    }
+}
+// ==========================================
+// LOAD SAVED LOCATIONS
+// ==========================================
+
+async function loadSavedLocations() {
+
+    const savedLocationsList =
+        document.getElementById("savedLocationsList");
+
+    if (!savedLocationsList) {
+        return;
+    }
+
+    const token =
+        localStorage.getItem("token");
+
+    if (!token) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "http://localhost:3000/api/saved-locations",
+                {
+                    headers: {
+                        "Authorization":
+                            "Bearer " + token
+                    }
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            savedLocationsList.innerHTML =
+                "<p>Unable to load saved locations.</p>";
+
+            return;
+        }
+
+        const locations =
+            data.locations || [];
+
+        if (locations.length === 0) {
+
+            savedLocationsList.innerHTML =
+                "<p>No saved locations yet.</p>";
+
+            return;
+        }
+
+        savedLocationsList.innerHTML =
+            locations.map(location => `
+
+                <div class="saved-location-item">
+
+                    <span>
+                        📍 <strong>${location.name}</strong>
+                        ${location.state
+                            ? ", " + location.state
+                            : ""}
+                        ${location.country
+                            ? ", " + location.country
+                            : ""}
+                    </span>
+
+                    <button
+                        type="button"
+                        onclick="deleteSavedLocation('${location._id}')">
+
+                        🗑️ Delete
+
+                    </button>
+
+                </div>
+
+            `).join("");
+
+    } catch (error) {
+
+        console.error(
+            "Load saved locations error:",
+            error
+        );
+
+        savedLocationsList.innerHTML =
+            "<p>Unable to load saved locations.</p>";
+
+    }
+
+}
+
+loadSavedLocations();
+
+// ==========================================
+// DELETE SAVED LOCATION
+// ==========================================
+
+async function deleteSavedLocation(locationId) {
+
+    const token =
+        localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please login again.");
+        return;
+    }
+
+    const confirmDelete =
+        confirm("Are you sure you want to delete this saved location?");
+
+    if (!confirmDelete) {
+        return;
+    }
+
+    try {
+
+       const response =
+    await fetch(
+        "http://localhost:3000/api/saved-locations/" + locationId,
+        {
+            method: "DELETE",
+            headers: {
+                "Authorization":
+                    "Bearer " + token
+            }
+        }
+    );
+
+        const data =
+            await response.json();
+
+        if (response.ok) {
+
+            alert("📍 Saved location deleted.");
+
+            await loadSavedLocations();
+
+        } else {
+
+            alert(
+                data.error ||
+                "Unable to delete saved location."
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Delete saved location error:",
+            error
+        );
+
+        alert("Unable to delete saved location.");
+
+    }
+
+}
 
 // ==========================================
 // ENTER KEY SEARCH
@@ -198,7 +535,7 @@ async function saveCurrentLocation() {
 
                 const response =
                     await fetch(
-                        "https://weather-prediction-and-forecasting-system.onrender.com/api/location",
+                       "http://localhost:3000/api/saved-locations",
                         {
                             method: "POST",
 
@@ -295,7 +632,7 @@ async function getWeather() {
         const location =
             await searchLocation(searchText);
 
-      
+        searchedLocation = location;
         if (!location) {
 
             weatherResult.innerHTML = `
@@ -354,11 +691,12 @@ async function getWeather() {
             );
 
             // SMART WEATHER RECOMMENDATION
-           
+
             updateSmartRecommendation(
-              weatherData.current.weather_code,
-              weatherData.current.apparent_temperature,
-              weatherData.current.wind_speed_10m
+               weatherData.current.weather_code,
+               weatherData.current.apparent_temperature,
+               weatherData.current.wind_speed_10m,
+               weatherData.current.is_day
             );
             const currentDate =
                weatherData.current.time.split("T")[0];
@@ -380,13 +718,22 @@ async function getWeather() {
 
                 <div class="weather-location">
 
-                    <h2>
-                        📍 ${locationText}
+                   <h2>
+                     📍 ${locationText}
+
+                     <button
+                       type="button"
+                       id="saveHeartBtn"
+                       class="heart-save-btn"
+                       onclick="saveSearchedLocation()"
+                       aria-label="Save location">
+                       ♡
+                     </button>
                     </h2>
 
-                    <p>
-                        📅 ${formattedDate}
-                    </p>
+                  <p>
+                    📅 ${formattedDate}
+                 </p>
 
                 </div>
 
@@ -486,47 +833,23 @@ async function getWeather() {
             if (token)
 
                 await fetch(
-                    "https://weather-prediction-and-forecasting-system.onrender.com/api/history",
-                    {
-                        method: "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json",
-
-                            "Authorization":
-                                "Bearer " + token
-
-                        },
-
-                        body: JSON.stringify({
-
-                            location:
-                                location.name,
-
-                            state:
-                                location.state,
-
-                            country:
-                                location.country,
-
-                            temperature:
-                                weatherData.current.temperature_2m,
-
-                            condition:
-                                condition,
-
-                            humidity:
-                                weatherData.current.relative_humidity_2m,
-
-                            windSpeed:
-                                weatherData.current.wind_speed_10m
-
-                        })
-
-                    }
-                );
+    "http://localhost:3000/api/history",
+    {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({
+            location: location.name,
+            country: location.country,
+            temperature: weatherData.current.temperature_2m,
+            condition: condition,
+            humidity: weatherData.current.relative_humidity_2m,
+            windSpeed: weatherData.current.wind_speed_10m
+        })
+    }
+);
 
         } catch (historyError) {
 
@@ -989,7 +1312,8 @@ function getWeatherCondition(code) {
 function updateSmartRecommendation(
     weatherCode,
     feelsLike,
-    windSpeed
+    windSpeed,
+    isDay
 ) {
     const smartRecommendation =
         document.getElementById("smartRecommendation");
@@ -1002,9 +1326,101 @@ function updateSmartRecommendation(
         return;
     }
 
+    // ==========================================
+    // 🌙 NIGHT TIME
+    // ==========================================
+    if (!isDay) {
+
+        // THUNDERSTORM
+        if (weatherCode >= 95 && weatherCode <= 99) {
+            recommendationMessage.innerHTML =
+                "⛈️ Thunderstorm conditions are expected tonight.<br>" +
+                "Outdoor activities may be affected.";
+
+            recommendationTip.textContent =
+                "🎒 Tip: Stay indoors and follow local weather alerts.";
+
+            return;
+        }
+
+        // RAIN
+        const isRain =
+            (weatherCode >= 51 && weatherCode <= 67) ||
+            (weatherCode >= 80 && weatherCode <= 82);
+
+        if (isRain) {
+            recommendationMessage.innerHTML =
+                "🌧️ Rain is expected tonight.<br>" +
+                "Outdoor activities may be affected.";
+
+            recommendationTip.textContent =
+                "☔ Tip: Carry an umbrella if you need to go outside.";
+
+            return;
+        }
+
+        // STRONG WIND
+        if (windSpeed >= 30) {
+            recommendationMessage.innerHTML =
+                "💨 Strong winds are present tonight.<br>" +
+                "Be careful during outdoor activities.";
+
+            recommendationTip.textContent =
+                "🎒 Tip: Avoid exposed areas and secure loose items.";
+
+            return;
+        }
+
+        // NIGHT HOT
+        if (feelsLike >= 34) {
+            recommendationMessage.innerHTML =
+                "🌡️ It feels quite hot tonight.<br>" +
+                "Keep yourself comfortable and hydrated.";
+
+            recommendationTip.textContent =
+                "💧 Tip: Drink enough water and stay in a cool place.";
+
+            return;
+        }
+
+        // NIGHT WARM
+        if (feelsLike >= 28) {
+            recommendationMessage.innerHTML =
+                "🌙 It feels warm tonight.";
+
+            recommendationTip.textContent =
+                "💧 Tip: Stay hydrated and keep yourself comfortable.";
+
+            return;
+        }
+
+        // NIGHT COOL
+        if (feelsLike < 20) {
+            recommendationMessage.innerHTML =
+                "🥶 It feels cool tonight.";
+
+            recommendationTip.textContent =
+                "🧥 Tip: Keep yourself warm and comfortable.";
+
+            return;
+        }
+
+        // NORMAL NIGHT
+        recommendationMessage.innerHTML =
+            "🌙 The weather feels comfortable tonight.";
+
+        recommendationTip.textContent =
+            "✨ Tip: Enjoy the pleasant weather.";
+
+        return;
+    }
+
+    // ==========================================
+    // ☀️ DAY TIME
+    // ==========================================
+
     // THUNDERSTORM
     if (weatherCode >= 95 && weatherCode <= 99) {
-
         recommendationMessage.innerHTML =
             "⛈️ Thunderstorm conditions are present right now.<br>" +
             "Outdoor activities may be affected.";
@@ -1017,7 +1433,6 @@ function updateSmartRecommendation(
 
     // STRONG WIND
     if (windSpeed >= 30) {
-
         recommendationMessage.innerHTML =
             "💨 Strong winds are present right now.<br>" +
             "Be careful during outdoor activities.";
@@ -1028,107 +1443,26 @@ function updateSmartRecommendation(
         return;
     }
 
-    // CHECK RAIN
+    // RAIN
     const isRain =
         (weatherCode >= 51 && weatherCode <= 67) ||
         (weatherCode >= 80 && weatherCode <= 82);
 
-    // RAIN + FEELS LIKE
     if (isRain) {
-
-        if (feelsLike < 20) {
-
-            recommendationMessage.innerHTML =
-                "🌧️ Rain is likely right now.<br>" +
-                "It also feels quite cold.";
-
-            recommendationTip.textContent =
-                "🎒 Tip: Carry an umbrella and wear suitable warm clothing.";
-
-       } else if (feelsLike >= 20 && feelsLike < 28)  {
-
-            recommendationMessage.innerHTML =
-                "🌧️ Rain is likely right now.<br>" +
-                "The temperature feels pleasant.";
-
-            recommendationTip.textContent =
-                "🎒 Tip: Carry an umbrella when going out.";
-
-        } else if (feelsLike >= 28 && feelsLike <= 33) {
-
-            recommendationMessage.innerHTML =
-                "🌧️ Rain is likely right now.<br>" +
-                "It also feels quite warm.";
-
-            recommendationTip.textContent =
-                "🎒 Tip: Carry an umbrella and stay hydrated.";
-
-        } else if (feelsLike >= 34 && feelsLike <= 38) {
-
-            recommendationMessage.innerHTML =
-                "🌧️ Rain is likely right now.<br>" +
-                "It also feels quite hot.";
-
-            recommendationTip.textContent =
-                "🎒 Tip: Carry an umbrella and stay hydrated.";
-
-        } else {
-
-            recommendationMessage.innerHTML =
-                "🌧️ Rain is likely right now.<br>" +
-                "It feels extremely hot.";
-
-            recommendationTip.textContent =
-                "🎒 Tip: Carry an umbrella, stay hydrated, and avoid prolonged outdoor activity.";
-        }
-
-        return;
-    }
-
-    // COLD
-    if (feelsLike < 20) {
-
         recommendationMessage.innerHTML =
-            "❄️ It feels quite cold right now.<br>" +
-            "Wear a jacket when going outside.";
+            "🌧️ Rain is likely right now.<br>" +
+            "Outdoor activities may be affected.";
 
         recommendationTip.textContent =
-            "🧥 Tip: Keep yourself warm.";
+            "☔ Tip: Carry an umbrella and stay hydrated.";
 
         return;
     }
 
-    // PLEASANT
-    if (feelsLike >= 20 && feelsLike <= 28) {
-
+    // DAY HOT
+    if (feelsLike >= 34) {
         recommendationMessage.innerHTML =
-            "😊 It feels pleasant outside.<br>" +
-            "Good time to go out.";
-
-        recommendationTip.textContent =
-            "🌤️ Tip: Enjoy your outdoor activities.";
-
-        return;
-    }
-
-    // WARM
-    if (feelsLike >= 28 && feelsLike <= 33) {
-
-        recommendationMessage.innerHTML =
-            "🌤️ It feels quite warm right now.<br>" +
-            "Stay hydrated when going outside.";
-
-        recommendationTip.textContent =
-            "💧 Tip: Drink enough water when going outside.";
-
-        return;
-    }
-
-    // HOT
-    if (feelsLike >= 34 && feelsLike <= 38) {
-
-        recommendationMessage.innerHTML =
-            "🥵 It feels quite hot right now.<br>" +
+            "🔥 It feels very hot right now.<br>" +
             "Avoid prolonged direct sunlight.";
 
         recommendationTip.textContent =
@@ -1137,20 +1471,36 @@ function updateSmartRecommendation(
         return;
     }
 
-    // VERY HOT
-    if (feelsLike >= 39) {
+    // DAY WARM
+    if (feelsLike >= 28) {
+        recommendationMessage.innerHTML =
+            "🌡️ It feels quite warm right now.";
 
-       recommendationMessage.innerHTML =
-          "🔥 It feels extremely hot right now.<br>" +
-          "Avoid prolonged outdoor activity.";
+        recommendationTip.textContent =
+            "💧 Tip: Stay hydrated and avoid prolonged sun exposure.";
 
-       recommendationTip.textContent =
-          "💧 Tip: Stay hydrated and avoid direct sunlight.";
+        return;
+    }
 
-    return;
+    // DAY PLEASANT
+    if (feelsLike >= 20) {
+        recommendationMessage.innerHTML =
+            "😊 The weather feels pleasant right now.";
+
+        recommendationTip.textContent =
+            "✨ Tip: It's a good time for normal outdoor activities.";
+
+        return;
+    }
+
+    // DAY COLD
+    recommendationMessage.innerHTML =
+        "🥶 It feels cool right now.";
+
+    recommendationTip.textContent =
+        "🧥 Tip: Keep yourself warm and comfortable.";
 }
 
-}
 // ==========================================
 // LOCATION SEARCH - STRICT EXACT MATCH
 // ==========================================
@@ -2811,7 +3161,8 @@ const notificationBtn =
         "notificationBtn"
     );
 
-async function updateNotificationButton() {
+
+  async function updateNotificationButton() {
 
     try {
 
@@ -2829,7 +3180,7 @@ async function updateNotificationButton() {
 
         const response =
             await fetch(
-                "https://weather-prediction-and-forecasting-system.onrender.com/api/me",
+                "http://localhost:3000/api/me",
                 {
                     headers: {
                         "Authorization":
@@ -2844,6 +3195,7 @@ async function updateNotificationButton() {
 
         const data =
             await response.json();
+
         if (
             data.notificationEnabled === true
         ) {
@@ -2867,8 +3219,7 @@ async function updateNotificationButton() {
 
     }
 
-}
-
+}  
 if (notificationBtn) {
 
     notificationBtn.addEventListener(
@@ -2886,16 +3237,16 @@ if (notificationBtn) {
                     return;
                 }
 
-                const meResponse =
-                    await fetch(
-                        "https://weather-prediction-and-forecasting-system.onrender.com/api/me",
-                        {
-                            headers: {
-                                "Authorization":
-                                    "Bearer " + token
-                            }
-                        }
-                    );
+                 const meResponse =
+    await fetch(
+        "http://localhost:3000/api/me",
+        {
+            headers: {
+                "Authorization":
+                    "Bearer " + token
+            }
+        }
+    );
 
                 const userData =
                     await meResponse.json();
@@ -2910,7 +3261,7 @@ if (notificationBtn) {
 
                     const response =
                         await fetch(
-                            "https://weather-prediction-and-forecasting-system.onrender.com/api/notification",
+                             "http://localhost:3000/api/notification",
                             {
                                 method: "POST",
 
@@ -2986,7 +3337,7 @@ if (notificationBtn) {
 
                 const response =
                     await fetch(
-                        "https://weather-prediction-and-forecasting-system.onrender.com/api/notification",
+                       "http://localhost:3000/api/notification",
                         {
                             method: "POST",
 
@@ -3041,8 +3392,9 @@ if (notificationBtn) {
 
 updateNotificationButton();
 
+
 // ==========================================
-// REAL WEATHER ALERT NOTIFICATION
+// REAL SAVED LOCATION WEATHER ALERT NOTIFICATION
 // ==========================================
 
 async function checkMyWeatherAlert() {
@@ -3050,44 +3402,9 @@ async function checkMyWeatherAlert() {
     try {
 
         const token =
-            localStorage.getItem(
-                "token"
-            );
-
+            localStorage.getItem("token");
 
         if (!token) {
-            return;
-        }
-
-        // ======================================
-        // CHECK USER NOTIFICATION SETTING
-        // ======================================
-
-        const userResponse =
-            await fetch(
-                "https://weather-prediction-and-forecasting-system.onrender.com/api/me",
-                {
-                    headers: {
-                        "Authorization":
-                            "Bearer " + token
-                    }
-                }
-            );
-
-
-        if (!userResponse.ok) {
-            return;
-        }
-
-        const userData =
-            await userResponse.json();
-
-
-        if (
-            userData.notificationEnabled !==
-            true
-        ) {
-
             return;
 
         }
@@ -3098,8 +3415,7 @@ async function checkMyWeatherAlert() {
 
         if (
             !("Notification" in window) ||
-            Notification.permission !==
-            "granted"
+            Notification.permission !== "granted"
         ) {
 
             return;
@@ -3107,12 +3423,12 @@ async function checkMyWeatherAlert() {
         }
 
         // ======================================
-        // CHECK CURRENT LOCATION WEATHER
+        // CHECK SAVED LOCATION WEATHER ALERTS
         // ======================================
 
         const response =
             await fetch(
-                "https://weather-prediction-and-forecasting-system.onrender.com/api/current-alert",
+               "http://localhost:3000/api/current-alert",
                 {
                     headers: {
                         "Authorization":
@@ -3128,6 +3444,9 @@ async function checkMyWeatherAlert() {
         const data =
             await response.json();
 
+        // ======================================
+        // SHOW ALERTS ONLY FOR SAVED LOCATIONS
+        // ======================================
 
         if (
             data.alert === true &&
@@ -3154,7 +3473,7 @@ async function checkMyWeatherAlert() {
     } catch (error) {
 
         console.error(
-            "Weather alert notification error:",
+            "Saved location weather alert notification error:",
             error
         );
 
@@ -3178,7 +3497,7 @@ async function testWeatherNotification() {
 
         const response =
             await fetch(
-                "https://weather-prediction-and-forecasting-system.onrender.com/api/test-alert",
+               "http://localhost:3000/api/saved-locations",
                 {
                     headers: {
                         "Authorization":
