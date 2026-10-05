@@ -15,7 +15,7 @@ saveCurrentLocation();
 // REGISTER SERVICE WORKER
 // ==========================================
 
-/*
+
 if ("serviceWorker" in navigator) {
 
     navigator.serviceWorker
@@ -31,7 +31,7 @@ if ("serviceWorker" in navigator) {
         });
 
 }
-*/
+
 
 // ==========================================
 // WEB PUSH SUBSCRIPTION
@@ -45,7 +45,7 @@ async function subscribeToPush() {
             await navigator.serviceWorker.ready;
 
         const response = await fetch(
-         "http://localhost:3000/api/vapid-public-key"
+         "https://weather-prediction-and-forecasting-system.onrender.com/api/vapid-public-key"
         );
 
         const data =
@@ -68,7 +68,7 @@ async function subscribeToPush() {
             localStorage.getItem("token");
 
         await fetch(
-           "http://localhost:3000/api/push-subscription",
+           "https://weather-prediction-and-forecasting-system.onrender.com/api/push-subscription",
             {
                 method: "POST",
 
@@ -176,7 +176,7 @@ async function saveSearchedLocation() {
 
         const savedResponse =
             await fetch(
-                "http://localhost:3000/api/saved-locations",
+                "https://weather-prediction-and-forecasting-system.onrender.com/api/saved-locations",
                 {
                     headers: {
                         "Authorization":
@@ -212,7 +212,7 @@ async function saveSearchedLocation() {
 
             const deleteResponse =
                 await fetch(
-                    "http://localhost:3000/api/saved-locations/" +
+                    "https://weather-prediction-and-forecasting-system.onrender.com/api/saved-locations/" +
                     existingLocation._id,
                     {
                         method: "DELETE",
@@ -253,7 +253,7 @@ async function saveSearchedLocation() {
 
         const response =
             await fetch(
-                "http://localhost:3000/api/saved-locations",
+                "https://weather-prediction-and-forecasting-system.onrender.com/api/saved-locations",
                 {
                     method: "POST",
 
@@ -343,7 +343,7 @@ async function loadSavedLocations() {
 
         const response =
             await fetch(
-                "http://localhost:3000/api/saved-locations",
+                "https://weather-prediction-and-forecasting-system.onrender.com/api/saved-locations",
                 {
                     headers: {
                         "Authorization":
@@ -442,7 +442,7 @@ async function deleteSavedLocation(locationId) {
 
        const response =
     await fetch(
-        "http://localhost:3000/api/saved-locations/" + locationId,
+        "https://weather-prediction-and-forecasting-system.onrender.com/api/saved-locations/" + locationId,
         {
             method: "DELETE",
             headers: {
@@ -533,31 +533,22 @@ async function saveCurrentLocation() {
                     return;
                 }
 
-                const response =
-                    await fetch(
-                       "http://localhost:3000/api/saved-locations",
-                        {
-                            method: "POST",
+               const response = await fetch(
+    "https://weather-prediction-and-forecasting-system.onrender.com/api/location",
+    {
+        method: "POST",
 
-                            headers: {
-                                "Content-Type":
-                                    "application/json",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
 
-                                "Authorization":
-                                    "Bearer " + token
-                            },
-
-                            body: JSON.stringify({
-
-                                latitude:
-                                    latitude,
-
-                                longitude:
-                                    longitude
-
-                            })
-                        }
-                    );
+        body: JSON.stringify({
+            latitude: latitude,
+            longitude: longitude
+        })
+    }
+);
 
                 const data =
                     await response.json();
@@ -833,7 +824,7 @@ async function getWeather() {
             if (token)
 
                 await fetch(
-    "http://localhost:3000/api/history",
+    "https://weather-prediction-and-forecasting-system.onrender.com/api/history",
     {
         method: "POST",
         headers: {
@@ -3180,7 +3171,7 @@ const notificationBtn =
 
         const response =
             await fetch(
-                "http://localhost:3000/api/me",
+                "https://weather-prediction-and-forecasting-system.onrender.com/api/me",
                 {
                     headers: {
                         "Authorization":
@@ -3239,7 +3230,7 @@ if (notificationBtn) {
 
                  const meResponse =
     await fetch(
-        "http://localhost:3000/api/me",
+        "https://weather-prediction-and-forecasting-system.onrender.com/api/me",
         {
             headers: {
                 "Authorization":
@@ -3261,7 +3252,7 @@ if (notificationBtn) {
 
                     const response =
                         await fetch(
-                             "http://localhost:3000/api/notification",
+                             "https://weather-prediction-and-forecasting-system.onrender.com/api/notification",
                             {
                                 method: "POST",
 
@@ -3337,7 +3328,7 @@ if (notificationBtn) {
 
                 const response =
                     await fetch(
-                       "http://localhost:3000/api/notification",
+                       "https://weather-prediction-and-forecasting-system.onrender.com/api/notification",
                         {
                             method: "POST",
 
@@ -3428,7 +3419,7 @@ async function checkMyWeatherAlert() {
 
         const response =
             await fetch(
-               "http://localhost:3000/api/current-alert",
+               "https://weather-prediction-and-forecasting-system.onrender.com/api/current-alert",
                 {
                     headers: {
                         "Authorization":
@@ -3497,7 +3488,7 @@ async function testWeatherNotification() {
 
         const response =
             await fetch(
-               "http://localhost:3000/api/saved-locations",
+               "https://weather-prediction-and-forecasting-system.onrender.com/api/saved-locations",
                 {
                     headers: {
                         "Authorization":
