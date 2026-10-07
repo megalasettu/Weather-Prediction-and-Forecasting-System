@@ -823,7 +823,7 @@ async function getWeather() {
 
             if (token)
 
-                await fetch(
+            fetch(
     "https://weather-prediction-and-forecasting-system.onrender.com/api/history",
     {
         method: "POST",
@@ -1631,7 +1631,7 @@ async function searchOpenMeteo(searchText) {
         const url =
             `https://geocoding-api.open-meteo.com/v1/search` +
             `?name=${encodeURIComponent(mainName)}` +
-            `&count=100` +
+            `&count=20` +
             `&language=en` +
             `&format=json`;
 
@@ -1902,7 +1902,7 @@ async function searchSimilarOpenMeteo(searchText) {
             `https://nominatim.openstreetmap.org/search` +
             `?format=jsonv2` +
             `&q=${encodeURIComponent(searchText)}` +
-            `&limit=50` +
+            `&limit=20` +
             `&addressdetails=1` +
             `&namedetails=1`;
 
